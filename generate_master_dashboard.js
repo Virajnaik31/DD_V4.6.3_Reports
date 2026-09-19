@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const rootDir = path.resolve(__dirname, '..'); // If placed in scratch or root
+const rootDir = 'c:\\Users\\viraj\\Desktop\\reports\\DD_V4.6.3_Reports';
+const GITHUB_REPO_URL = 'https://github.com/Virajnaik31/DD_V4.6.3_Reports';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/Virajnaik31/DD_V4.6.3_Reports/main';
+const GITHUB_PAGES_BASE = 'https://virajnaik31.github.io/DD_V4.6.3_Reports';
 
 function generateDashboard(targetRootDir) {
   function findReports(dir, category = '') {
@@ -10,7 +13,6 @@ function generateDashboard(targetRootDir) {
 
     const hasIndex = entries.some(e => e.isFile() && e.name.toLowerCase() === 'index.html');
     
-    // Make sure we don't treat the root itself as a report
     if (hasIndex && dir !== targetRootDir) {
       const relPath = path.relative(targetRootDir, dir).replace(/\\/g, '/');
       const parts = relPath.split('/');
@@ -20,12 +22,17 @@ function generateDashboard(targetRootDir) {
 
       let screenshots = [];
       let videos = [];
+      let dataFiles = [];
 
       const scDir = path.join(dir, 'screenshots');
       if (fs.existsSync(scDir)) {
         try {
           const scFiles = fs.readdirSync(scDir).filter(f => /\.(png|jpe?g|webp)$/i.test(f));
-          screenshots = scFiles.map(f => `${relPath}/screenshots/${f}`);
+          screenshots = scFiles.map(f => ({
+            name: f,
+            title: formatStepName(f),
+            relPath: `${relPath}/screenshots/${f}`
+          }));
         } catch (e) {}
       }
 
@@ -33,7 +40,21 @@ function generateDashboard(targetRootDir) {
       if (fs.existsSync(vidDir)) {
         try {
           const vidFiles = fs.readdirSync(vidDir).filter(f => /\.(webm|mp4|mov)$/i.test(f));
-          videos = vidFiles.map(f => `${relPath}/videos/${f}`);
+          videos = vidFiles.map(f => ({
+            name: f,
+            relPath: `${relPath}/videos/${f}`
+          }));
+        } catch (e) {}
+      }
+
+      const dataDir = path.join(dir, 'data');
+      if (fs.existsSync(dataDir)) {
+        try {
+          const df = fs.readdirSync(dataDir);
+          dataFiles = df.slice(0, 15).map(f => ({
+            name: f,
+            relPath: `${relPath}/data/${f}`
+          }));
         } catch (e) {}
       }
 
@@ -48,10 +69,12 @@ function generateDashboard(targetRootDir) {
         title: formatTitle(reportName, moduleName, cat),
         relativePath: relPath,
         url: `${relPath}/index.html`,
+        githubReportUrl: `${GITHUB_PAGES_BASE}/${relPath}/index.html`,
         screenshotsCount: screenshots.length,
         videosCount: videos.length,
         screenshots: screenshots,
         videos: videos,
+        dataFiles: dataFiles,
         lastModified: stats.mtime.toISOString(),
         sizeKb: Math.round(stats.size / 1024)
       });
@@ -80,8 +103,15 @@ function generateDashboard(targetRootDir) {
     return clean;
   }
 
+  function formatStepName(fileName) {
+    let clean = fileName.replace(/\.(png|jpe?g|webp)$/i, '');
+    clean = clean.replace(/^(\d+[_.-])+/g, '');
+    clean = clean.replace(/[-_]/g, ' ').trim();
+    if (!clean) clean = fileName;
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+
   const allReports = findReports(targetRootDir);
-  // Sort reports logically
   allReports.sort((a, b) => {
     if (a.category !== b.category) return a.category.localeCompare(b.category);
     if (a.module !== b.module) return a.module.localeCompare(b.module);
@@ -90,12 +120,7 @@ function generateDashboard(targetRootDir) {
 
   const totalScreenshots = allReports.reduce((sum, r) => sum + r.screenshotsCount, 0);
   const totalVideos = allReports.reduce((sum, r) => sum + r.videosCount, 0);
-
   const categories = [...new Set(allReports.map(r => r.category))];
-  const modulesByCategory = {};
-  for (const cat of categories) {
-    modulesByCategory[cat] = [...new Set(allReports.filter(r => r.category === cat).map(r => r.module))];
-  }
 
   const reportsJson = JSON.stringify(allReports);
   const generatedDate = new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'medium' });
@@ -108,15 +133,17 @@ function generateDashboard(targetRootDir) {
   <title>DealsDray V4.6.3 — Master Automation Test Reports</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-primary: #0a0e17;
-      --bg-secondary: #111827;
-      --bg-card: rgba(17, 24, 39, 0.75);
-      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --bg-base: #0a0e17;
+      --bg-sidebar: #0f172a;
+      --bg-panel: #111827;
+      --bg-card: rgba(30, 41, 59, 0.5);
+      --bg-card-hover: rgba(30, 41, 59, 0.9);
+      --bg-input: #1e293b;
       --border-color: rgba(255, 255, 255, 0.08);
-      --border-hover: rgba(99, 102, 241, 0.4);
+      --border-focus: rgba(99, 102, 241, 0.5);
       --text-primary: #f8fafc;
       --text-secondary: #94a3b8;
       --text-muted: #64748b;
@@ -125,545 +152,350 @@ function generateDashboard(targetRootDir) {
       --accent-glow: rgba(99, 102, 241, 0.25);
       --success: #10b981;
       --success-glow: rgba(16, 185, 129, 0.2);
-      --warning: #f59e0b;
-      --info: #06b6d4;
-      --radius-sm: 8px;
-      --radius-md: 14px;
-      --radius-lg: 20px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
       --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
       --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.4);
-      --shadow-glow: 0 0 40px var(--accent-glow);
-      --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     [data-theme="light"] {
-      --bg-primary: #f8fafc;
-      --bg-secondary: #ffffff;
-      --bg-card: rgba(255, 255, 255, 0.85);
-      --bg-card-hover: rgba(241, 245, 249, 0.95);
+      --bg-base: #f1f5f9;
+      --bg-sidebar: #ffffff;
+      --bg-panel: #f8fafc;
+      --bg-card: rgba(255, 255, 255, 0.8);
+      --bg-card-hover: #ffffff;
+      --bg-input: #e2e8f0;
       --border-color: rgba(0, 0, 0, 0.08);
-      --border-hover: rgba(99, 102, 241, 0.5);
+      --border-focus: rgba(99, 102, 241, 0.5);
       --text-primary: #0f172a;
       --text-secondary: #475569;
       --text-muted: #94a3b8;
-      --accent-glow: rgba(99, 102, 241, 0.15);
       --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
       --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: var(--bg-primary);
+      background-color: var(--bg-base);
       color: var(--text-primary);
-      min-height: 100vh;
-      line-height: 1.5;
-      background-image: 
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.08) 0px, transparent 50%),
-        radial-gradient(at 50% 50%, rgba(6, 182, 212, 0.05) 0px, transparent 50%);
-      background-attachment: fixed;
-    }
-
-    /* Container */
-    .container {
-      max-width: 1540px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem 5rem;
-    }
-
-    /* Header */
-    header {
+      height: 100vh;
+      overflow: hidden;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2.5rem;
-      padding-bottom: 1.5rem;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar */
+    .topbar {
+      height: 60px;
+      background: var(--bg-sidebar);
       border-bottom: 1px solid var(--border-color);
-    }
-
-    .brand-section {
       display: flex;
       align-items: center;
-      gap: 1.25rem;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
     }
 
     .brand-logo {
-      width: 52px;
-      height: 52px;
-      border-radius: var(--radius-md);
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
       background: var(--accent-gradient);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 20px var(--accent-glow);
       font-family: 'Outfit', sans-serif;
       font-weight: 800;
-      font-size: 1.5rem;
+      font-size: 1.15rem;
       color: #fff;
+      box-shadow: 0 2px 10px var(--accent-glow);
     }
 
-    .brand-text h1 {
+    .brand-title {
       font-family: 'Outfit', sans-serif;
-      font-size: 1.85rem;
+      font-size: 1.2rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .brand-text h1 .version-badge {
-      font-size: 0.8rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 9999px;
-      background: rgba(99, 102, 241, 0.15);
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      color: var(--accent-primary);
-      font-weight: 600;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .brand-text p {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      margin-top: 0.15rem;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .theme-toggle, .btn-icon {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .theme-toggle:hover, .btn-icon:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--border-hover);
-      transform: translateY(-2px);
-    }
-
-    /* KPI Stats Grid */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.25rem;
-      margin-bottom: 2.5rem;
-    }
-
-    .stat-card {
-      background: var(--bg-card);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 1.5rem;
-      position: relative;
-      overflow: hidden;
-      transition: var(--transition);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .stat-card:hover {
-      transform: translateY(-4px);
-      border-color: var(--border-hover);
-      box-shadow: var(--shadow-md);
-    }
-
-    .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: var(--accent-gradient);
-      opacity: 0.8;
-    }
-
-    .stat-title {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-
-    .stat-value {
-      font-family: 'Outfit', sans-serif;
-      font-size: 2.25rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      line-height: 1;
-    }
-
-    .stat-desc {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      margin-top: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .stat-icon {
-      position: absolute;
-      right: 1.5rem;
-      top: 1.5rem;
-      font-size: 1.75rem;
-      opacity: 0.2;
-    }
-
-    /* Checklist Quick Jump Bar */
-    .checklist-banner {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.08) 100%);
-      border: 1px solid rgba(99, 102, 241, 0.2);
-      border-radius: var(--radius-md);
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 2.5rem;
-      backdrop-filter: blur(10px);
-    }
-
-    .checklist-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    .checklist-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.1rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--text-primary);
-    }
-
-    .checklist-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.45rem;
-      max-height: 110px;
-      overflow-y: auto;
-      padding-right: 0.5rem;
-    }
-
-    .case-chip {
-      background: rgba(17, 24, 39, 0.6);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 0.3rem 0.65rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.78rem;
-      font-family: 'JetBrains Mono', monospace;
-      text-decoration: none;
-      transition: var(--transition);
-      cursor: pointer;
-    }
-
-    .case-chip:hover {
-      background: var(--accent-primary);
-      color: #fff;
-      border-color: var(--accent-primary);
-      transform: scale(1.05);
-    }
-
-    /* Controls Bar */
-    .controls-panel {
-      background: var(--bg-card);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 1.25rem;
-      margin-bottom: 2rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .search-wrapper {
-      position: relative;
-      flex: 1;
-      min-width: 280px;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      pointer-events: none;
-    }
-
-    .search-input {
-      width: 100%;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.75rem 1rem 0.75rem 2.75rem;
-      color: var(--text-primary);
-      font-size: 0.95rem;
-      outline: none;
-      transition: var(--transition);
-      font-family: inherit;
-    }
-
-    .search-input:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-
-    .search-shortcut {
-      position: absolute;
-      right: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
-      padding: 0.15rem 0.45rem;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .filter-group {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .filter-select {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.75rem 1rem;
-      color: var(--text-primary);
-      font-size: 0.9rem;
-      outline: none;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .view-toggle {
-      display: flex;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.2rem;
-    }
-
-    .view-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 0.5rem 0.75rem;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.85rem;
-      font-weight: 500;
-      transition: var(--transition);
-    }
-
-    .view-btn.active {
-      background: var(--accent-primary);
-      color: #fff;
-    }
-
-    /* Category Nav Tabs */
-    .tabs-nav {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 2rem;
-      overflow-x: auto;
-      padding-bottom: 0.5rem;
-    }
-
-    .tab-btn {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 0.75rem 1.25rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: var(--transition);
       display: flex;
       align-items: center;
       gap: 0.6rem;
     }
 
-    .tab-btn:hover {
-      background: var(--bg-card-hover);
-      color: var(--text-primary);
-      border-color: var(--border-hover);
-    }
-
-    .tab-btn.active {
-      background: var(--accent-gradient);
-      color: #fff;
-      border-color: transparent;
-      box-shadow: 0 4px 15px var(--accent-glow);
-    }
-
-    .tab-count {
-      font-size: 0.75rem;
-      background: rgba(0, 0, 0, 0.25);
-      padding: 0.15rem 0.5rem;
-      border-radius: 9999px;
-    }
-
-    .tab-btn.active .tab-count {
-      background: rgba(255, 255, 255, 0.25);
-    }
-
-    /* Grid Layout */
-    .reports-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .report-card {
-      background: var(--bg-card);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      transition: var(--transition);
-      box-shadow: var(--shadow-sm);
-      position: relative;
-    }
-
-    .report-card:hover {
-      transform: translateY(-5px);
-      border-color: var(--border-hover);
-      box-shadow: var(--shadow-md);
-      background: var(--bg-card-hover);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .category-badge {
+    .version-badge {
       font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-weight: 700;
-      padding: 0.25rem 0.6rem;
-      border-radius: 6px;
+      padding: 0.15rem 0.55rem;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: var(--accent-primary);
       font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
     }
 
-    .badge-CMT { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
-    .badge-orderFulFilmentChecklist { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
-    .badge-orderFulfilment { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-superadmin { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-
-    .status-badge {
+    .topbar-metrics {
       display: flex;
       align-items: center;
-      gap: 0.35rem;
-      font-size: 0.75rem;
-      color: var(--success);
-      font-weight: 600;
+      gap: 1.25rem;
+      font-size: 0.85rem;
     }
 
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--success);
-      box-shadow: 0 0 8px var(--success);
-    }
-
-    .card-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 0.35rem;
-      line-height: 1.35;
-    }
-
-    .card-module {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-bottom: 1.25rem;
+    .metric-pill {
       display: flex;
       align-items: center;
       gap: 0.4rem;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* Media Previews */
-    .media-meta-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.75rem 1rem;
-      background: var(--bg-secondary);
-      border-radius: var(--radius-sm);
-      margin-bottom: 1.25rem;
-      font-size: 0.85rem;
+      padding: 0.3rem 0.75rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
       color: var(--text-secondary);
     }
 
-    .media-meta-item {
+    .metric-pill strong {
+      color: var(--text-primary);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-icon {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      text-decoration: none;
+      transition: var(--transition);
+      font-size: 1rem;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-focus);
+    }
+
+    /* Main Split-Pane Workspace */
+    .app-workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── LEFT PANEL (Reports List & Filter) ── */
+    .left-sidebar {
+      width: 380px;
+      min-width: 320px;
+      max-width: 480px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 0.85rem 0.6rem 2.25rem;
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      outline: none;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .category-filter-bar {
+      display: flex;
+      gap: 0.35rem;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+    }
+
+    .cat-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 0.35rem 0.65rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition);
+    }
+
+    .cat-btn:hover {
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .cat-btn.active {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    .reports-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .report-item {
+      padding: 0.75rem 0.85rem;
+      background: var(--bg-card);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .report-item:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-color);
+    }
+
+    .report-item.active {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--accent-primary);
+    }
+
+    .report-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .category-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .cat-CMT { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .cat-orderFulFilmentChecklist { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+    .cat-orderFulfilment { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .cat-superadmin { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+
+    .report-item-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+
+    .report-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── RIGHT PANEL (Steps Tree, Folder Structure & Inspector) ── */
+    .right-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      overflow-y: auto;
+    }
+
+    .report-detail-header {
+      padding: 1.25rem 1.75rem;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .report-title-area h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.45rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .report-path-breadcrumb {
       display: flex;
       align-items: center;
       gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
     }
 
-    .card-actions {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 0.5rem;
+    .header-action-btns {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
     }
 
-    .btn {
+    .btn-action {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
       gap: 0.45rem;
-      padding: 0.65rem 1rem;
+      padding: 0.55rem 1rem;
       border-radius: var(--radius-sm);
       font-size: 0.85rem;
       font-weight: 600;
@@ -674,736 +506,679 @@ function generateDashboard(targetRootDir) {
       font-family: inherit;
     }
 
-    .btn-primary {
+    .btn-action-primary {
       background: var(--accent-gradient);
       color: #fff;
-      box-shadow: 0 2px 10px var(--accent-glow);
     }
 
-    .btn-primary:hover {
-      box-shadow: 0 4px 20px var(--accent-glow);
-      transform: translateY(-2px);
+    .btn-action-primary:hover {
+      box-shadow: 0 4px 15px var(--accent-glow);
     }
 
-    .btn-secondary {
-      background: var(--bg-secondary);
+    .btn-action-secondary {
+      background: var(--bg-card);
       border-color: var(--border-color);
       color: var(--text-primary);
     }
 
-    .btn-secondary:hover {
+    .btn-action-secondary:hover {
       background: var(--bg-card-hover);
-      border-color: var(--border-hover);
-      color: var(--accent-primary);
+      border-color: var(--border-focus);
     }
 
-    /* Table View */
-    .reports-table-wrapper {
-      display: none;
-      background: var(--bg-card);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      overflow-x: auto;
-      box-shadow: var(--shadow-sm);
+    /* Two Column Inspector Layout */
+    .inspector-body {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      flex: 1;
+      min-height: 0;
     }
 
-    .reports-table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 0.9rem;
+    /* Steps & Folder Tree Column */
+    .tree-column {
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 1rem;
+      gap: 1.25rem;
     }
 
-    .reports-table th {
-      background: var(--bg-secondary);
-      padding: 1rem 1.25rem;
-      color: var(--text-muted);
-      font-weight: 600;
-      font-size: 0.8rem;
+    .section-heading {
+      font-size: 0.78rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border-bottom: 1px solid var(--border-color);
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .reports-table td {
-      padding: 1rem 1.25rem;
-      border-bottom: 1px solid var(--border-color);
+    /* Folder Structure Explorer */
+    .folder-tree-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+    }
+
+    .tree-node {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.4rem;
+      border-radius: 4px;
       color: var(--text-secondary);
     }
 
-    .reports-table tr:hover td {
-      background: var(--bg-card-hover);
-    }
-
-    .table-title {
+    .tree-node.node-dir {
       font-weight: 600;
       color: var(--text-primary);
     }
 
-    /* Modals */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      z-index: 1000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      opacity: 0;
-      transition: opacity 0.25s ease;
+    .tree-indent {
+      padding-left: 1.2rem;
     }
 
-    .modal-backdrop.open {
-      display: flex;
-      opacity: 1;
-    }
-
-    .modal-box {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      width: 100%;
-      max-width: 1100px;
-      max-height: 90vh;
+    /* Steps Execution Tree */
+    .steps-timeline {
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-      box-shadow: var(--shadow-md);
-      position: relative;
+      gap: 0.35rem;
     }
 
-    .modal-header {
-      padding: 1.25rem 1.5rem;
+    .step-node {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-card);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .step-node:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-color);
+    }
+
+    .step-node.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--accent-primary);
+      color: #fff;
+    }
+
+    .step-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 0.72rem;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-weight: 700;
+    }
+
+    .step-node.active .step-badge {
+      background: var(--accent-primary);
+      color: #fff;
+    }
+
+    .step-name-text {
+      font-size: 0.82rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Right Preview Stage */
+    .preview-stage {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    /* Stage Header & Tabs */
+    .stage-nav {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+
+    .stage-tab-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .stage-tab-btn.active {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    /* Stage Viewer Containers */
+    .viewer-panel {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .viewer-panel.active {
+      display: flex;
+    }
+
+    .screenshot-viewer-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewer-card-header {
+      padding: 0.85rem 1.25rem;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid var(--border-color);
+      font-size: 0.85rem;
     }
 
-    .modal-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .modal-close {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 1.5rem;
-      cursor: pointer;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: var(--transition);
-    }
-
-    .modal-close:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-    }
-
-    .modal-body {
-      padding: 1.5rem;
-      overflow-y: auto;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* Video Player */
-    .video-container {
+    .viewer-main-img-box {
       width: 100%;
-      max-height: 65vh;
+      min-height: 480px;
+      max-height: 68vh;
       background: #000;
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-    }
-
-    .video-container video {
-      width: 100%;
-      height: 100%;
-      max-height: 65vh;
-      display: block;
-    }
-
-    /* Gallery */
-    .gallery-viewer {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      align-items: center;
-    }
-
-    .main-image-wrapper {
-      width: 100%;
-      height: 55vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
       position: relative;
     }
 
-    .main-image-wrapper img {
+    .viewer-main-img-box img {
       max-width: 100%;
-      max-height: 100%;
+      max-height: 68vh;
       object-fit: contain;
     }
 
-    .gallery-nav-btn {
+    .stage-nav-arrow {
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.65);
       border: 1px solid var(--border-color);
       color: #fff;
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       transition: var(--transition);
     }
 
-    .gallery-nav-btn:hover {
+    .stage-nav-arrow:hover {
       background: var(--accent-primary);
     }
 
-    .gallery-prev { left: 1rem; }
-    .gallery-next { right: 1rem; }
+    .stage-arrow-prev { left: 1rem; }
+    .stage-arrow-next { right: 1rem; }
 
-    .gallery-counter {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+    /* Video Player View */
+    .video-viewer-card {
+      background: #000;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      max-height: 75vh;
     }
 
-    .thumbnails-strip {
+    .video-viewer-card video {
+      width: 100%;
+      max-height: 75vh;
+      display: block;
+    }
+
+    /* Thumbnail Filmstrip */
+    .thumb-filmstrip {
       display: flex;
       gap: 0.5rem;
       overflow-x: auto;
-      max-width: 100%;
       padding: 0.5rem 0;
     }
 
-    .thumb-item {
-      width: 80px;
-      height: 50px;
+    .strip-item {
+      width: 90px;
+      height: 56px;
       border-radius: 4px;
       overflow: hidden;
       border: 2px solid transparent;
       cursor: pointer;
       opacity: 0.6;
-      transition: var(--transition);
       flex-shrink: 0;
+      transition: var(--transition);
+      background: #000;
     }
 
-    .thumb-item.active, .thumb-item:hover {
+    .strip-item.active, .strip-item:hover {
       opacity: 1;
       border-color: var(--accent-primary);
+      transform: scale(1.04);
     }
 
-    .thumb-item img {
+    .strip-item img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
 
-    /* Empty state */
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 4rem 2rem;
-      color: var(--text-muted);
-    }
-
-    /* Footer */
-    footer {
-      margin-top: 4rem;
-      padding-top: 2rem;
-      border-top: 1px solid var(--border-color);
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
-
-    @media (max-width: 768px) {
-      .container { padding: 1rem; }
-      header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-      .controls-panel { flex-direction: column; align-items: stretch; }
-      .card-actions { grid-template-columns: 1fr; }
+    @media (max-width: 992px) {
+      .app-workspace { flex-direction: column; }
+      .left-sidebar { width: 100%; max-width: 100%; height: 280px; }
+      .inspector-body { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <!-- Header -->
-  <header>
-    <div class="brand-section">
+  <!-- Top Navbar -->
+  <header class="topbar">
+    <div class="topbar-brand">
       <div class="brand-logo">DD</div>
-      <div class="brand-text">
-        <h1>DealsDray Test Portal <span class="version-badge">v4.6.3 UAT</span></h1>
-        <p>Comprehensive End-to-End Automation Execution Master Reports</p>
+      <div class="brand-title">
+        DealsDray Automation Portal <span class="version-badge">v4.6.3 UAT</span>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">
-        🌙
-      </button>
+
+    <div class="topbar-metrics">
+      <div class="metric-pill">📑 <strong>${allReports.length}</strong> Reports</div>
+      <div class="metric-pill">📸 <strong>${totalScreenshots.toLocaleString()}</strong> Steps</div>
+      <div class="metric-pill">🎬 <strong>${totalVideos}</strong> Videos</div>
+    </div>
+
+    <div class="topbar-actions">
+      <a href="${GITHUB_REPO_URL}" target="_blank" class="btn-icon" title="View GitHub Repo">📦</a>
+      <button class="btn-icon" id="themeToggle" title="Toggle Theme">🌙</button>
     </div>
   </header>
 
-  <!-- High-Level Stats -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-title">Total Reports</div>
-      <div class="stat-value" id="statTotalReports">${allReports.length}</div>
-      <div class="stat-desc">✅ 100% Executed & Verified</div>
-      <div class="stat-icon">📑</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-title">Captured Screenshots</div>
-      <div class="stat-value" id="statTotalScreenshots">${totalScreenshots.toLocaleString()}</div>
-      <div class="stat-desc">📸 Step-by-step visual proofs</div>
-      <div class="stat-icon">📷</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-title">Video Recordings</div>
-      <div class="stat-value" id="statTotalVideos">${totalVideos}</div>
-      <div class="stat-desc">🎥 Full session screen captures</div>
-      <div class="stat-icon">🎬</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-title">Core Modules</div>
-      <div class="stat-value">${categories.length}</div>
-      <div class="stat-desc">CMT, OFT, Checklists, SuperAdmin</div>
-      <div class="stat-icon">🏢</div>
-    </div>
-  </div>
-
-  <!-- Order Fulfilment Quick Jump Matrix -->
-  <div class="checklist-banner">
-    <div class="checklist-header">
-      <div class="checklist-title">
-        <span>⚡</span> Order Fulfilment Checklist Cases (Quick Matrix)
-      </div>
-      <div style="font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
-        44 Test Cases Available
-      </div>
-    </div>
-    <div class="checklist-chips" id="checklistChips">
-      <!-- Generated via JS -->
-    </div>
-  </div>
-
-  <!-- Controls Bar -->
-  <div class="controls-panel">
-    <div class="search-wrapper">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="searchInput" class="search-input" placeholder="Search reports, cases, modules, or test names...">
-      <span class="search-shortcut">/</span>
-    </div>
-
-    <div class="filter-group">
-      <select id="moduleFilter" class="filter-select">
-        <option value="ALL">All Modules</option>
-      </select>
-
-      <select id="sortSelect" class="filter-select">
-        <option value="name_asc">Sort by Name (A-Z)</option>
-        <option value="name_desc">Sort by Name (Z-A)</option>
-        <option value="screenshots_desc">Most Screenshots</option>
-        <option value="size_desc">Largest Size</option>
-      </select>
-
-      <div class="view-toggle">
-        <button class="view-btn active" id="gridViewBtn" title="Grid View">🔲 Grid</button>
-        <button class="view-btn" id="tableViewBtn" title="Table View">📋 Table</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tabs Navigation -->
-  <div class="tabs-nav" id="categoryTabs">
-    <button class="tab-btn active" data-category="ALL">
-      All Reports <span class="tab-count">${allReports.length}</span>
-    </button>
-    ${categories.map(cat => `
-      <button class="tab-btn" data-category="${cat}">
-        ${cat} <span class="tab-count">${allReports.filter(r => r.category === cat).length}</span>
-      </button>
-    `).join('')}
-  </div>
-
-  <!-- Grid View Container -->
-  <div class="reports-grid" id="reportsGrid"></div>
-
-  <!-- Table View Container -->
-  <div class="reports-table-wrapper" id="reportsTableWrapper">
-    <table class="reports-table">
-      <thead>
-        <tr>
-          <th>Category</th>
-          <th>Module</th>
-          <th>Test Report Name</th>
-          <th>Screenshots</th>
-          <th>Videos</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="reportsTableBody"></tbody>
-    </table>
-  </div>
-
-  <!-- Footer -->
-  <footer>
-    <p>DealsDray Automation Master Dashboard &bull; Generated on ${generatedDate}</p>
-  </footer>
-</div>
-
-<!-- Video Modal -->
-<div class="modal-backdrop" id="videoModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title" id="videoModalTitle">Execution Recording</div>
-      <button class="modal-close" onclick="closeModal('videoModal')">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="video-container">
-        <video id="modalVideoPlayer" controls autoplay loop playsinline>
-          <source src="" type="video/webm">
-          Your browser does not support video playback.
-        </video>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Screenshot Gallery Lightbox Modal -->
-<div class="modal-backdrop" id="galleryModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title" id="galleryModalTitle">Screenshot Gallery</div>
-      <button class="modal-close" onclick="closeModal('galleryModal')">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="gallery-viewer">
-        <div class="main-image-wrapper">
-          <button class="gallery-nav-btn gallery-prev" onclick="navGallery(-1)">&larr;</button>
-          <img id="galleryMainImg" src="" alt="Screenshot">
-          <button class="gallery-nav-btn gallery-next" onclick="navGallery(1)">&rarr;</button>
+  <!-- Split View Layout -->
+  <div class="app-workspace">
+    
+    <!-- ── LEFT HAND SIDE: Reports Explorer & Filters ── -->
+    <aside class="left-sidebar">
+      <div class="sidebar-header">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search test cases or modules...">
         </div>
-        <div class="gallery-counter" id="galleryCounter">1 / 1</div>
-        <div class="thumbnails-strip" id="galleryThumbs"></div>
+        
+        <div class="category-filter-bar">
+          <button class="cat-btn active" data-cat="ALL">All (${allReports.length})</button>
+          ${categories.map(c => `
+            <button class="cat-btn" data-cat="${c}">${c} (${allReports.filter(r => r.category === c).length})</button>
+          `).join('')}
+        </div>
       </div>
-    </div>
+
+      <div class="reports-list" id="reportsList"></div>
+    </aside>
+
+    <!-- ── RIGHT HAND SIDE: Steps Tree, Folder Structure & Detailed Preview ── -->
+    <main class="right-content">
+      
+      <!-- Top Detail Header -->
+      <div class="report-detail-header">
+        <div class="report-title-area">
+          <h2 id="detailTitle">Select a Test Case</h2>
+          <div class="report-path-breadcrumb" id="detailBreadcrumb">
+            📂 DealsDray_Reports
+          </div>
+        </div>
+
+        <div class="header-action-btns">
+          <a id="btnOpenReport" href="#" target="_blank" class="btn-action btn-action-primary">
+            🚀 Open Playwright Report
+          </a>
+        </div>
+      </div>
+
+      <!-- Main Inspector Split -->
+      <div class="inspector-body">
+        
+        <!-- Left Sub-column: Folder Structure & Step Tree -->
+        <div class="tree-column">
+          
+          <!-- Folder Structure Node Explorer -->
+          <div>
+            <div class="section-heading">
+              <span>📁 Associated Folder Structure</span>
+            </div>
+            <div class="folder-tree-box" id="folderTreeBox"></div>
+          </div>
+
+          <!-- Execution Steps Tree -->
+          <div>
+            <div class="section-heading">
+              <span>⚡ Execution Steps Tree (<span id="stepsCountBadge">0</span>)</span>
+            </div>
+            <div class="steps-timeline" id="stepsTimeline"></div>
+          </div>
+        </div>
+
+        <!-- Right Sub-column: Interactive Stage Viewer -->
+        <div class="preview-stage">
+          
+          <!-- View Navigation Tabs -->
+          <div class="stage-nav">
+            <button class="stage-tab-btn active" id="tabScreenshots" onclick="setStageTab('screenshots')">
+              📸 Screenshot Inspector
+            </button>
+            <button class="stage-tab-btn" id="tabVideo" onclick="setStageTab('video')">
+              🎬 Video Recording (<span id="videoTabBadge">1</span>)
+            </button>
+          </div>
+
+          <!-- Screenshot Viewer Panel -->
+          <div class="viewer-panel active" id="panelScreenshots">
+            <div class="screenshot-viewer-card">
+              <div class="viewer-card-header">
+                <div>
+                  <strong id="viewerStepTitle">Step Title</strong>
+                </div>
+                <div style="font-family: 'JetBrains Mono', monospace; color: var(--text-muted);" id="viewerStepCounter">
+                  1 / 1
+                </div>
+              </div>
+              <div class="viewer-main-img-box">
+                <button class="stage-nav-arrow stage-arrow-prev" onclick="navStep(-1)">&larr;</button>
+                <img id="mainStepImg" src="" alt="Test Step Screenshot">
+                <button class="stage-nav-arrow stage-arrow-next" onclick="navStep(1)">&rarr;</button>
+              </div>
+            </div>
+
+            <!-- Thumbnail Strip -->
+            <div class="thumb-filmstrip" id="thumbFilmstrip"></div>
+          </div>
+
+          <!-- Video Viewer Panel -->
+          <div class="viewer-panel" id="panelVideo">
+            <div class="video-viewer-card">
+              <video id="stageVideoPlayer" controls autoplay loop playsinline>
+                <source id="stageVideoSource" src="" type="video/webm">
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
   </div>
-</div>
 
-<script>
-  const ALL_REPORTS = ${reportsJson};
-  let currentCategory = 'ALL';
-  let currentModule = 'ALL';
-  let searchQuery = '';
-  let sortBy = 'name_asc';
-  let viewMode = 'grid';
+  <script>
+    const ALL_REPORTS = ${reportsJson};
+    const GITHUB_RAW_BASE = '${GITHUB_RAW_BASE}';
 
-  // Gallery state
-  let currentGalleryList = [];
-  let currentGalleryIdx = 0;
+    let selectedReport = ALL_REPORTS[0] || null;
+    let selectedStepIdx = 0;
+    let activeCategory = 'ALL';
+    let searchQuery = '';
+    let stageTab = 'screenshots';
 
-  // Initialize
-  document.addEventListener('DOMContentLoaded', () => {
-    initChecklistChips();
-    initTheme();
-    updateModuleFilterOptions();
-    renderReports();
-
-    // Event Listeners
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      searchQuery = e.target.value.toLowerCase().trim();
-      renderReports();
-    });
-
-    // Keyboard shortcut / for search
-    document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
-        e.preventDefault();
-        document.getElementById('searchInput').focus();
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      renderReportsList();
+      if (selectedReport) {
+        selectReport(selectedReport.id);
       }
-      if (e.key === 'Escape') {
-        closeModal('videoModal');
-        closeModal('galleryModal');
-      }
-      if (document.getElementById('galleryModal').classList.contains('open')) {
-        if (e.key === 'ArrowLeft') navGallery(-1);
-        if (e.key === 'ArrowRight') navGallery(1);
-      }
-    });
 
-    document.getElementById('moduleFilter').addEventListener('change', (e) => {
-      currentModule = e.target.value;
-      renderReports();
-    });
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase().trim();
+        renderReportsList();
+      });
 
-    document.getElementById('sortSelect').addEventListener('change', (e) => {
-      sortBy = e.target.value;
-      renderReports();
-    });
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeCategory = btn.getAttribute('data-cat');
+          renderReportsList();
+        });
+      });
 
-    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
-    // Tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentCategory = btn.getAttribute('data-category');
-        currentModule = 'ALL';
-        updateModuleFilterOptions();
-        renderReports();
+      // Keyboard navigation
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') navStep(-1);
+        if (e.key === 'ArrowRight') navStep(1);
       });
     });
 
-    // View toggle
-    document.getElementById('gridViewBtn').addEventListener('click', () => setViewMode('grid'));
-    document.getElementById('tableViewBtn').addEventListener('click', () => setViewMode('table'));
-  });
-
-  function initChecklistChips() {
-    const container = document.getElementById('checklistChips');
-    const checklistReports = ALL_REPORTS.filter(r => r.category === 'orderFulFilmentChecklist');
-    
-    container.innerHTML = checklistReports.map(r => {
-      return \`<a href="\${r.url}" target="_blank" class="case-chip" title="\${r.title} (\${r.screenshotsCount} SS)">
-        \${r.name.replace('_report', '')}
-      </a>\`;
-    }).join('');
-  }
-
-  function updateModuleFilterOptions() {
-    const select = document.getElementById('moduleFilter');
-    let filtered = ALL_REPORTS;
-    if (currentCategory !== 'ALL') {
-      filtered = ALL_REPORTS.filter(r => r.category === currentCategory);
-    }
-    const modules = [...new Set(filtered.map(r => r.module))].sort();
-
-    select.innerHTML = '<option value="ALL">All Modules (' + filtered.length + ')</option>' +
-      modules.map(m => \`<option value="\${m}">\${m}</option>\`).join('');
-    select.value = 'ALL';
-  }
-
-  function setViewMode(mode) {
-    viewMode = mode;
-    document.getElementById('gridViewBtn').classList.toggle('active', mode === 'grid');
-    document.getElementById('tableViewBtn').classList.toggle('active', mode === 'table');
-    document.getElementById('reportsGrid').style.display = mode === 'grid' ? 'grid' : 'none';
-    document.getElementById('reportsTableWrapper').style.display = mode === 'table' ? 'block' : 'none';
-  }
-
-  function filterAndSortReports() {
-    return ALL_REPORTS.filter(r => {
-      const matchCat = currentCategory === 'ALL' || r.category === currentCategory;
-      const matchMod = currentModule === 'ALL' || r.module === currentModule;
-      const matchSearch = !searchQuery || 
-        r.name.toLowerCase().includes(searchQuery) ||
-        r.title.toLowerCase().includes(searchQuery) ||
-        r.module.toLowerCase().includes(searchQuery) ||
-        r.category.toLowerCase().includes(searchQuery) ||
-        r.screenshots.some(s => s.toLowerCase().includes(searchQuery));
-      return matchCat && matchMod && matchSearch;
-    }).sort((a, b) => {
-      if (sortBy === 'name_asc') return a.title.localeCompare(b.title, undefined, { numeric: true });
-      if (sortBy === 'name_desc') return b.title.localeCompare(a.title, undefined, { numeric: true });
-      if (sortBy === 'screenshots_desc') return b.screenshotsCount - a.screenshotsCount;
-      if (sortBy === 'size_desc') return b.sizeKb - a.sizeKb;
-      return 0;
-    });
-  }
-
-  function renderReports() {
-    const filtered = filterAndSortReports();
-    const grid = document.getElementById('reportsGrid');
-    const tableBody = document.getElementById('reportsTableBody');
-
-    if (filtered.length === 0) {
-      grid.innerHTML = \`<div class="empty-state">
-        <h3>No matching test reports found</h3>
-        <p style="margin-top: 0.5rem;">Try adjusting your search query or active category filters.</p>
-      </div>\`;
-      tableBody.innerHTML = \`<tr><td colspan="6" style="text-align:center; padding: 2rem;">No matching test reports found</td></tr>\`;
-      return;
+    function getFilteredReports() {
+      return ALL_REPORTS.filter(r => {
+        const matchCat = activeCategory === 'ALL' || r.category === activeCategory;
+        const matchSearch = !searchQuery || 
+          r.name.toLowerCase().includes(searchQuery) ||
+          r.title.toLowerCase().includes(searchQuery) ||
+          r.module.toLowerCase().includes(searchQuery) ||
+          r.category.toLowerCase().includes(searchQuery);
+        return matchCat && matchSearch;
+      });
     }
 
-    // Render Grid
-    grid.innerHTML = filtered.map(r => \`
-      <div class="report-card">
-        <div>
-          <div class="card-header">
-            <span class="category-badge badge-\${r.category}">\${r.category}</span>
-            <div class="status-badge"><span class="status-dot"></span> Passed</div>
+    function renderReportsList() {
+      const container = document.getElementById('reportsList');
+      const filtered = getFilteredReports();
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding:2rem 1rem; text-align:center; color:var(--text-muted);">No reports found</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(r => \`
+        <div class="report-item \${selectedReport && selectedReport.id === r.id ? 'active' : ''}" onclick="selectReport('\${r.id}')">
+          <div class="report-item-header">
+            <span class="category-tag cat-\${r.category}">\${r.category}</span>
+            <span style="color:var(--success); font-size:0.72rem; font-weight:600;">● Passed</span>
           </div>
-          <h3 class="card-title">\${r.title}</h3>
-          <div class="card-module">📦 \${r.module} / \${r.name}</div>
-          
-          <div class="media-meta-row">
-            <div class="media-meta-item">📸 <strong>\${r.screenshotsCount}</strong> screenshots</div>
-            <div class="media-meta-item">🎥 <strong>\${r.videosCount}</strong> video</div>
-            <div class="media-meta-item">💾 \${r.sizeKb} KB</div>
+          <div class="report-item-title">\${r.title}</div>
+          <div class="report-item-meta">
+            <span>📦 \${r.module}</span>
+            <span>📸 \${r.screenshotsCount} SS</span>
+            <span>🎥 \${r.videosCount}</span>
           </div>
         </div>
-
-        <div class="card-actions">
-          <a href="\${r.url}" target="_blank" class="btn btn-primary">
-            🚀 Open Report
-          </a>
-          \${r.videos.length > 0 ? \`
-            <button class="btn btn-secondary" onclick="openVideoModal('\${r.videos[0]}', '\${escapeHtml(r.title)}')">
-              🎬 Video
-            </button>
-          \` : ''}
-          \${r.screenshots.length > 0 ? \`
-            <button class="btn btn-secondary" onclick="openGalleryModal('\${r.id}', '\${escapeHtml(r.title)}')">
-              📸 Gallery
-            </button>
-          \` : ''}
-        </div>
-      </div>
-    \`).join('');
-
-    // Render Table
-    tableBody.innerHTML = filtered.map(r => \`
-      <tr>
-        <td><span class="category-badge badge-\${r.category}">\${r.category}</span></td>
-        <td><code>\${r.module}</code></td>
-        <td>
-          <div class="table-title">\${r.title}</div>
-          <div style="font-size: 0.78rem; color: var(--text-muted); font-family: 'JetBrains Mono';">\${r.name}</div>
-        </td>
-        <td>📸 \${r.screenshotsCount}</td>
-        <td>🎥 \${r.videosCount}</td>
-        <td>
-          <div style="display: flex; gap: 0.4rem;">
-            <a href="\${r.url}" target="_blank" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Open</a>
-            \${r.videos.length > 0 ? \`
-              <button class="btn btn-secondary" style="padding: 0.4rem 0.6rem; font-size: 0.8rem;" onclick="openVideoModal('\${r.videos[0]}', '\${escapeHtml(r.title)}')">🎬</button>
-            \` : ''}
-            \${r.screenshots.length > 0 ? \`
-              <button class="btn btn-secondary" style="padding: 0.4rem 0.6rem; font-size: 0.8rem;" onclick="openGalleryModal('\${r.id}', '\${escapeHtml(r.title)}')">📸</button>
-            \` : ''}
-          </div>
-        </td>
-      </tr>
-    \`).join('');
-  }
-
-  // Modals
-  function openVideoModal(videoSrc, title) {
-    const modal = document.getElementById('videoModal');
-    const player = document.getElementById('modalVideoPlayer');
-    document.getElementById('videoModalTitle').textContent = title + ' — Video Recording';
-    player.src = videoSrc;
-    modal.classList.add('open');
-    player.play().catch(() => {});
-  }
-
-  function openGalleryModal(reportId, title) {
-    const report = ALL_REPORTS.find(r => r.id === reportId);
-    if (!report || report.screenshots.length === 0) return;
-
-    currentGalleryList = report.screenshots;
-    currentGalleryIdx = 0;
-    document.getElementById('galleryModalTitle').textContent = title + ' — Screenshot Gallery';
-    
-    updateGalleryView();
-    document.getElementById('galleryModal').classList.add('open');
-  }
-
-  function updateGalleryView() {
-    const img = document.getElementById('galleryMainImg');
-    const counter = document.getElementById('galleryCounter');
-    const thumbs = document.getElementById('galleryThumbs');
-    const currentSrc = currentGalleryList[currentGalleryIdx];
-
-    img.src = currentSrc;
-    const fileName = currentSrc.split('/').pop();
-    counter.textContent = \`Step \${currentGalleryIdx + 1} of \${currentGalleryList.length} (\${fileName})\`;
-
-    thumbs.innerHTML = currentGalleryList.map((src, idx) => \`
-      <div class="thumb-item \${idx === currentGalleryIdx ? 'active' : ''}" onclick="setGalleryIdx(\${idx})">
-        <img src="\${src}" alt="Thumb \${idx + 1}" loading="lazy">
-      </div>
-    \`).join('');
-  }
-
-  function setGalleryIdx(idx) {
-    currentGalleryIdx = idx;
-    updateGalleryView();
-  }
-
-  function navGallery(step) {
-    currentGalleryIdx = (currentGalleryIdx + step + currentGalleryList.length) % currentGalleryList.length;
-    updateGalleryView();
-  }
-
-  function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    modal.classList.remove('open');
-    if (modalId === 'videoModal') {
-      const player = document.getElementById('modalVideoPlayer');
-      player.pause();
-      player.src = '';
+      \`).join('');
     }
-  }
 
-  // Theme Toggle
-  function initTheme() {
-    const savedTheme = localStorage.getItem('dd_report_theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '🌙' : '☀️';
-  }
+    function selectReport(reportId) {
+      selectedReport = ALL_REPORTS.find(r => r.id === reportId);
+      if (!selectedReport) return;
+      selectedStepIdx = 0;
 
-  function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('dd_report_theme', next);
-    document.getElementById('themeToggle').textContent = next === 'dark' ? '🌙' : '☀️';
-  }
+      // Update sidebar active class
+      document.querySelectorAll('.report-item').forEach(el => el.classList.remove('active'));
+      const activeEl = document.querySelector(\`.report-item[onclick="selectReport('\${reportId}')"]\`);
+      if (activeEl) activeEl.classList.add('active');
 
-  function escapeHtml(str) {
-    return str.replace(/'/g, "\\\\'").replace(/"/g, '&quot;');
-  }
-</script>
+      // Update Header
+      document.getElementById('detailTitle').textContent = selectedReport.title;
+      document.getElementById('detailBreadcrumb').textContent = \`📂 \${selectedReport.relativePath}\`;
+      document.getElementById('btnOpenReport').href = selectedReport.url;
 
+      // Render Folder Structure Tree
+      renderFolderTree(selectedReport);
+
+      // Render Step Execution Tree
+      renderStepsTree(selectedReport);
+
+      // Render Stage Content
+      updateStageView();
+    }
+
+    function renderFolderTree(report) {
+      const box = document.getElementById('folderTreeBox');
+      const parts = report.relativePath.split('/');
+      const folderName = parts[parts.length - 1];
+
+      let html = \`
+        <div class="tree-node node-dir">📁 \${folderName}/</div>
+        <div class="tree-indent">
+          <div class="tree-node">📄 index.html (\${report.sizeKb} KB)</div>
+          <div class="tree-node node-dir">📁 screenshots/ (\${report.screenshotsCount} files)</div>
+          <div class="tree-indent">
+            \${report.screenshots.slice(0, 3).map(s => \`<div class="tree-node">🖼️ \${s.name}</div>\`).join('')}
+            \${report.screenshotsCount > 3 ? \`<div class="tree-node" style="color:var(--text-muted);">... +\${report.screenshotsCount - 3} more files</div>\` : ''}
+          </div>
+          <div class="tree-node node-dir">📁 videos/ (\${report.videosCount} files)</div>
+          <div class="tree-indent">
+            \${report.videos.map(v => \`<div class="tree-node">🎬 \${v.name}</div>\`).join('')}
+          </div>
+        </div>
+      \`;
+      box.innerHTML = html;
+    }
+
+    function renderStepsTree(report) {
+      const timeline = document.getElementById('stepsTimeline');
+      document.getElementById('stepsCountBadge').textContent = report.screenshotsCount;
+
+      if (report.screenshots.length === 0) {
+        timeline.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem; padding:0.5rem;">No screenshots recorded</div>';
+        return;
+      }
+
+      timeline.innerHTML = report.screenshots.map((s, idx) => \`
+        <div class="step-node \${idx === selectedStepIdx ? 'active' : ''}" onclick="selectStep(\${idx})">
+          <span class="step-badge">\${idx + 1}</span>
+          <span class="step-name-text" title="\${s.title}">\${s.title}</span>
+        </div>
+      \`).join('');
+    }
+
+    function selectStep(idx) {
+      selectedStepIdx = idx;
+      
+      // Update step nodes
+      document.querySelectorAll('.step-node').forEach((node, i) => {
+        node.classList.toggle('active', i === idx);
+      });
+
+      updateStageView();
+    }
+
+    function updateStageView() {
+      if (!selectedReport || selectedReport.screenshots.length === 0) return;
+
+      const currentStep = selectedReport.screenshots[selectedStepIdx];
+      const img = document.getElementById('mainStepImg');
+      
+      img.src = currentStep.relPath;
+      img.onerror = () => {
+        if (!img.getAttribute('data-retried')) {
+          img.setAttribute('data-retried', '1');
+          img.src = GITHUB_RAW_BASE + '/' + currentStep.relPath;
+        }
+      };
+
+      document.getElementById('viewerStepTitle').textContent = \`Step \${selectedStepIdx + 1}: \${currentStep.title}\`;
+      document.getElementById('viewerStepCounter').textContent = \`\${selectedStepIdx + 1} of \${selectedReport.screenshots.length} (\${currentStep.name})\`;
+
+      // Update Filmstrip
+      const strip = document.getElementById('thumbFilmstrip');
+      strip.innerHTML = selectedReport.screenshots.map((s, idx) => \`
+        <div class="strip-item \${idx === selectedStepIdx ? 'active' : ''}" onclick="selectStep(\${idx})">
+          <img src="\${s.relPath}" alt="Step \${idx + 1}" onerror="this.src='\${GITHUB_RAW_BASE}/\${s.relPath}'" loading="lazy">
+        </div>
+      \`).join('');
+
+      // Update Video
+      const videoPlayer = document.getElementById('stageVideoPlayer');
+      const videoBadge = document.getElementById('videoTabBadge');
+      videoBadge.textContent = selectedReport.videosCount;
+
+      if (selectedReport.videos.length > 0) {
+        videoPlayer.src = selectedReport.videos[0].relPath;
+      } else {
+        videoPlayer.src = '';
+      }
+    }
+
+    function navStep(delta) {
+      if (!selectedReport || selectedReport.screenshots.length === 0) return;
+      const count = selectedReport.screenshots.length;
+      selectedStepIdx = (selectedStepIdx + delta + count) % count;
+      selectStep(selectedStepIdx);
+    }
+
+    function setStageTab(tab) {
+      stageTab = tab;
+      document.getElementById('tabScreenshots').classList.toggle('active', tab === 'screenshots');
+      document.getElementById('tabVideo').classList.toggle('active', tab === 'video');
+      document.getElementById('panelScreenshots').classList.toggle('active', tab === 'screenshots');
+      document.getElementById('panelVideo').classList.toggle('active', tab === 'video');
+
+      const videoPlayer = document.getElementById('stageVideoPlayer');
+      if (tab === 'video' && selectedReport && selectedReport.videos.length > 0) {
+        videoPlayer.play().catch(() => {});
+      } else {
+        videoPlayer.pause();
+      }
+    }
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem('dd_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('dd_theme', next);
+      document.getElementById('themeToggle').textContent = next === 'dark' ? '🌙' : '☀️';
+    }
+  </script>
 </body>
 </html>`;
 
   const outputPath = path.join(targetRootDir, 'index.html');
   fs.writeFileSync(outputPath, htmlContent, 'utf8');
-  console.log(`Successfully generated master HTML report at: ${outputPath}`);
-  console.log(`File size: ${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB`);
+  console.log(`Generated Split-Layout Master Report: ${outputPath} (${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB)`);
 }
 
 generateDashboard('c:\\Users\\viraj\\Desktop\\reports\\DD_V4.6.3_Reports');
