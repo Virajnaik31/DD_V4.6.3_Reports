@@ -65,6 +65,7 @@ function generateDashboard(targetRootDir) {
         id: relPath.replace(/[^a-zA-Z0-9_-]/g, '_'),
         category: cat,
         categoryLabel: formatCategoryLabel(cat),
+        shortLabel: formatCategoryShort(cat),
         module: moduleName,
         name: reportName,
         title: formatTitle(reportName, moduleName, cat),
@@ -96,6 +97,16 @@ function generateDashboard(targetRootDir) {
       case 'CMT': return 'CMT';
       case 'orderFulFilmentChecklist': return 'Order Fulfilment Checklist';
       case 'orderFulfilment': return 'Order Fulfilment';
+      case 'superadmin': return 'SuperAdmin';
+      default: return cat;
+    }
+  }
+
+  function formatCategoryShort(cat) {
+    switch (cat) {
+      case 'CMT': return 'CMT';
+      case 'orderFulFilmentChecklist': return 'Checklist';
+      case 'orderFulfilment': return 'Fulfilment';
       case 'superadmin': return 'SuperAdmin';
       default: return cat;
     }
@@ -310,9 +321,9 @@ function generateDashboard(targetRootDir) {
 
     /* ── LEFT PANEL (Reports List & Filter) ── */
     .left-sidebar {
-      width: 400px;
-      min-width: 340px;
-      max-width: 480px;
+      width: 440px;
+      min-width: 380px;
+      max-width: 520px;
       background: var(--bg-sidebar);
       border-right: 1px solid var(--border-color);
       display: flex;
@@ -360,35 +371,56 @@ function generateDashboard(targetRootDir) {
       font-size: 0.85rem;
     }
 
+    /* All 4 Category Nav Bar (Equal Width Grid, No Cut-Off) */
     .category-filter-bar {
-      display: flex;
-      gap: 0.4rem;
-      overflow-x: auto;
-      padding-bottom: 0.25rem;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.35rem;
+      width: 100%;
     }
 
     .cat-btn {
-      background: transparent;
+      background: var(--bg-input);
       border: 1px solid var(--border-color);
       color: var(--text-secondary);
-      padding: 0.4rem 0.75rem;
+      padding: 0.45rem 0.3rem;
       border-radius: var(--radius-sm);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 600;
       cursor: pointer;
+      text-align: center;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+    }
+
+    .cat-btn span.cat-count {
+      font-size: 0.68rem;
+      opacity: 0.75;
+      font-family: 'JetBrains Mono', monospace;
     }
 
     .cat-btn:hover {
       background: var(--bg-card);
       color: var(--text-primary);
+      border-color: var(--border-focus);
     }
 
     .cat-btn.active {
       background: var(--accent-primary);
       color: #fff;
       border-color: var(--accent-primary);
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+
+    .cat-btn.active span.cat-count {
+      opacity: 1;
+      font-weight: 700;
     }
 
     .reports-list {
@@ -833,13 +865,27 @@ function generateDashboard(targetRootDir) {
           <input type="text" id="searchInput" placeholder="Search test cases or modules...">
         </div>
         
-        <!-- Category Filter Tabs (Folders) -->
+        <!-- All 4 Quick Nav Buttons Perfectly Fitted & Visible -->
         <div class="category-filter-bar">
-          ${categories.map((c, i) => `
-            <button class="cat-btn ${i === 0 ? 'active' : ''}" data-cat="${c}">
-              ${formatCategoryLabel(c)} (${allReports.filter(r => r.category === c).length})
-            </button>
-          `).join('')}
+          <button class="cat-btn active" data-cat="CMT" title="CMT Modules">
+            <div>CMT</div>
+            <span class="cat-count">(${allReports.filter(r => r.category === 'CMT').length})</span>
+          </button>
+          
+          <button class="cat-btn" data-cat="orderFulfilment" title="Order Fulfilment">
+            <div>Fulfilment</div>
+            <span class="cat-count">(${allReports.filter(r => r.category === 'orderFulfilment').length})</span>
+          </button>
+
+          <button class="cat-btn" data-cat="orderFulFilmentChecklist" title="Order Fulfilment Checklist">
+            <div>Checklist</div>
+            <span class="cat-count">(${allReports.filter(r => r.category === 'orderFulFilmentChecklist').length})</span>
+          </button>
+
+          <button class="cat-btn" data-cat="superadmin" title="SuperAdmin Modules">
+            <div>SuperAdmin</div>
+            <span class="cat-count">(${allReports.filter(r => r.category === 'superadmin').length})</span>
+          </button>
         </div>
       </div>
 
@@ -945,7 +991,7 @@ function generateDashboard(targetRootDir) {
     const ALL_REPORTS = ${reportsJson};
     const GITHUB_RAW_BASE = '${GITHUB_RAW_BASE}';
 
-    let activeCategory = '${categories[0]}';
+    let activeCategory = 'CMT';
     let selectedReport = ALL_REPORTS.find(r => r.category === activeCategory) || ALL_REPORTS[0];
     let selectedStepIdx = 0;
     let searchQuery = '';
@@ -1164,7 +1210,7 @@ function generateDashboard(targetRootDir) {
 
   const outputPath = path.join(targetRootDir, 'index.html');
   fs.writeFileSync(outputPath, htmlContent, 'utf8');
-  console.log(`Updated Dashboard: ${outputPath}`);
+  console.log(`Updated 4-column quick nav bar in: ${outputPath}`);
 }
 
 generateDashboard('c:\\Users\\viraj\\Desktop\\reports\\DD_V4.6.3_Reports');
