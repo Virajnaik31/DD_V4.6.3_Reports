@@ -64,6 +64,7 @@ function generateDashboard(targetRootDir) {
       results.push({
         id: relPath.replace(/[^a-zA-Z0-9_-]/g, '_'),
         category: cat,
+        categoryLabel: formatCategoryLabel(cat),
         module: moduleName,
         name: reportName,
         title: formatTitle(reportName, moduleName, cat),
@@ -88,6 +89,16 @@ function generateDashboard(targetRootDir) {
     }
 
     return results;
+  }
+
+  function formatCategoryLabel(cat) {
+    switch (cat) {
+      case 'CMT': return 'CMT';
+      case 'orderFulFilmentChecklist': return 'Order Fulfilment Checklist';
+      case 'orderFulfilment': return 'Order Fulfilment';
+      case 'superadmin': return 'SuperAdmin';
+      default: return cat;
+    }
   }
 
   function formatTitle(name, module, cat) {
@@ -151,7 +162,6 @@ function generateDashboard(targetRootDir) {
       --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
       --accent-glow: rgba(99, 102, 241, 0.25);
       --success: #10b981;
-      --success-glow: rgba(16, 185, 129, 0.2);
       --radius-sm: 6px;
       --radius-md: 10px;
       --radius-lg: 16px;
@@ -300,8 +310,8 @@ function generateDashboard(targetRootDir) {
 
     /* ── LEFT PANEL (Reports List & Filter) ── */
     .left-sidebar {
-      width: 380px;
-      min-width: 320px;
+      width: 400px;
+      min-width: 340px;
       max-width: 480px;
       background: var(--bg-sidebar);
       border-right: 1px solid var(--border-color);
@@ -352,7 +362,7 @@ function generateDashboard(targetRootDir) {
 
     .category-filter-bar {
       display: flex;
-      gap: 0.35rem;
+      gap: 0.4rem;
       overflow-x: auto;
       padding-bottom: 0.25rem;
     }
@@ -361,9 +371,9 @@ function generateDashboard(targetRootDir) {
       background: transparent;
       border: 1px solid var(--border-color);
       color: var(--text-secondary);
-      padding: 0.35rem 0.65rem;
+      padding: 0.4rem 0.75rem;
       border-radius: var(--radius-sm);
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
@@ -515,17 +525,6 @@ function generateDashboard(targetRootDir) {
       box-shadow: 0 4px 15px var(--accent-glow);
     }
 
-    .btn-action-secondary {
-      background: var(--bg-card);
-      border-color: var(--border-color);
-      color: var(--text-primary);
-    }
-
-    .btn-action-secondary:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--border-focus);
-    }
-
     /* Two Column Inspector Layout */
     .inspector-body {
       display: grid;
@@ -534,7 +533,6 @@ function generateDashboard(targetRootDir) {
       min-height: 0;
     }
 
-    /* Steps & Folder Tree Column */
     .tree-column {
       background: var(--bg-sidebar);
       border-right: 1px solid var(--border-color);
@@ -557,7 +555,6 @@ function generateDashboard(targetRootDir) {
       justify-content: space-between;
     }
 
-    /* Folder Structure Explorer */
     .folder-tree-box {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
@@ -585,7 +582,6 @@ function generateDashboard(targetRootDir) {
       padding-left: 1.2rem;
     }
 
-    /* Steps Execution Tree */
     .steps-timeline {
       display: flex;
       flex-direction: column;
@@ -651,7 +647,6 @@ function generateDashboard(targetRootDir) {
       overflow-y: auto;
     }
 
-    /* Stage Header & Tabs */
     .stage-nav {
       display: flex;
       gap: 0.5rem;
@@ -680,7 +675,6 @@ function generateDashboard(targetRootDir) {
       border-color: var(--accent-primary);
     }
 
-    /* Stage Viewer Containers */
     .viewer-panel {
       display: none;
       flex-direction: column;
@@ -752,7 +746,6 @@ function generateDashboard(targetRootDir) {
     .stage-arrow-prev { left: 1rem; }
     .stage-arrow-next { right: 1rem; }
 
-    /* Video Player View */
     .video-viewer-card {
       background: #000;
       border: 1px solid var(--border-color);
@@ -767,7 +760,6 @@ function generateDashboard(targetRootDir) {
       display: block;
     }
 
-    /* Thumbnail Filmstrip */
     .thumb-filmstrip {
       display: flex;
       gap: 0.5rem;
@@ -841,10 +833,12 @@ function generateDashboard(targetRootDir) {
           <input type="text" id="searchInput" placeholder="Search test cases or modules...">
         </div>
         
+        <!-- Category Filter Tabs (Folders) -->
         <div class="category-filter-bar">
-          <button class="cat-btn active" data-cat="ALL">All (${allReports.length})</button>
-          ${categories.map(c => `
-            <button class="cat-btn" data-cat="${c}">${c} (${allReports.filter(r => r.category === c).length})</button>
+          ${categories.map((c, i) => `
+            <button class="cat-btn ${i === 0 ? 'active' : ''}" data-cat="${c}">
+              ${formatCategoryLabel(c)} (${allReports.filter(r => r.category === c).length})
+            </button>
           `).join('')}
         </div>
       </div>
@@ -951,9 +945,9 @@ function generateDashboard(targetRootDir) {
     const ALL_REPORTS = ${reportsJson};
     const GITHUB_RAW_BASE = '${GITHUB_RAW_BASE}';
 
-    let selectedReport = ALL_REPORTS[0] || null;
+    let activeCategory = '${categories[0]}';
+    let selectedReport = ALL_REPORTS.find(r => r.category === activeCategory) || ALL_REPORTS[0];
     let selectedStepIdx = 0;
-    let activeCategory = 'ALL';
     let searchQuery = '';
     let stageTab = 'screenshots';
 
@@ -975,12 +969,16 @@ function generateDashboard(targetRootDir) {
           btn.classList.add('active');
           activeCategory = btn.getAttribute('data-cat');
           renderReportsList();
+
+          const firstInCat = ALL_REPORTS.find(r => r.category === activeCategory);
+          if (firstInCat) {
+            selectReport(firstInCat.id);
+          }
         });
       });
 
       document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
-      // Keyboard navigation
       document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') navStep(-1);
         if (e.key === 'ArrowRight') navStep(1);
@@ -989,7 +987,7 @@ function generateDashboard(targetRootDir) {
 
     function getFilteredReports() {
       return ALL_REPORTS.filter(r => {
-        const matchCat = activeCategory === 'ALL' || r.category === activeCategory;
+        const matchCat = r.category === activeCategory;
         const matchSearch = !searchQuery || 
           r.name.toLowerCase().includes(searchQuery) ||
           r.title.toLowerCase().includes(searchQuery) ||
@@ -1004,7 +1002,7 @@ function generateDashboard(targetRootDir) {
       const filtered = getFilteredReports();
 
       if (filtered.length === 0) {
-        container.innerHTML = '<div style="padding:2rem 1rem; text-align:center; color:var(--text-muted);">No reports found</div>';
+        container.innerHTML = '<div style="padding:2rem 1rem; text-align:center; color:var(--text-muted);">No reports found in this folder</div>';
         return;
       }
 
@@ -1029,23 +1027,16 @@ function generateDashboard(targetRootDir) {
       if (!selectedReport) return;
       selectedStepIdx = 0;
 
-      // Update sidebar active class
       document.querySelectorAll('.report-item').forEach(el => el.classList.remove('active'));
       const activeEl = document.querySelector(\`.report-item[onclick="selectReport('\${reportId}')"]\`);
       if (activeEl) activeEl.classList.add('active');
 
-      // Update Header
       document.getElementById('detailTitle').textContent = selectedReport.title;
       document.getElementById('detailBreadcrumb').textContent = \`📂 \${selectedReport.relativePath}\`;
       document.getElementById('btnOpenReport').href = selectedReport.url;
 
-      // Render Folder Structure Tree
       renderFolderTree(selectedReport);
-
-      // Render Step Execution Tree
       renderStepsTree(selectedReport);
-
-      // Render Stage Content
       updateStageView();
     }
 
@@ -1091,12 +1082,9 @@ function generateDashboard(targetRootDir) {
 
     function selectStep(idx) {
       selectedStepIdx = idx;
-      
-      // Update step nodes
       document.querySelectorAll('.step-node').forEach((node, i) => {
         node.classList.toggle('active', i === idx);
       });
-
       updateStageView();
     }
 
@@ -1117,7 +1105,6 @@ function generateDashboard(targetRootDir) {
       document.getElementById('viewerStepTitle').textContent = \`Step \${selectedStepIdx + 1}: \${currentStep.title}\`;
       document.getElementById('viewerStepCounter').textContent = \`\${selectedStepIdx + 1} of \${selectedReport.screenshots.length} (\${currentStep.name})\`;
 
-      // Update Filmstrip
       const strip = document.getElementById('thumbFilmstrip');
       strip.innerHTML = selectedReport.screenshots.map((s, idx) => \`
         <div class="strip-item \${idx === selectedStepIdx ? 'active' : ''}" onclick="selectStep(\${idx})">
@@ -1125,7 +1112,6 @@ function generateDashboard(targetRootDir) {
         </div>
       \`).join('');
 
-      // Update Video
       const videoPlayer = document.getElementById('stageVideoPlayer');
       const videoBadge = document.getElementById('videoTabBadge');
       videoBadge.textContent = selectedReport.videosCount;
@@ -1178,7 +1164,7 @@ function generateDashboard(targetRootDir) {
 
   const outputPath = path.join(targetRootDir, 'index.html');
   fs.writeFileSync(outputPath, htmlContent, 'utf8');
-  console.log(`Generated Split-Layout Master Report: ${outputPath} (${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB)`);
+  console.log(`Updated Dashboard: ${outputPath}`);
 }
 
 generateDashboard('c:\\Users\\viraj\\Desktop\\reports\\DD_V4.6.3_Reports');
