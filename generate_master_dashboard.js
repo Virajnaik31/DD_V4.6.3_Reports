@@ -371,7 +371,6 @@ function generateDashboard(targetRootDir) {
       font-size: 0.85rem;
     }
 
-    /* All 4 Category Nav Bar (Equal Width Grid, No Cut-Off) */
     .category-filter-bar {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -557,7 +556,6 @@ function generateDashboard(targetRootDir) {
       box-shadow: 0 4px 15px var(--accent-glow);
     }
 
-    /* Two Column Inspector Layout */
     .inspector-body {
       display: grid;
       grid-template-columns: 320px 1fr;
@@ -670,7 +668,6 @@ function generateDashboard(targetRootDir) {
       text-overflow: ellipsis;
     }
 
-    /* Right Preview Stage */
     .preview-stage {
       padding: 1.5rem;
       display: flex;
@@ -778,18 +775,90 @@ function generateDashboard(targetRootDir) {
     .stage-arrow-prev { left: 1rem; }
     .stage-arrow-next { right: 1rem; }
 
+    /* ── ADVANCED VIDEO PLAYER WITH SPEED CONTROLS ── */
     .video-viewer-card {
       background: #000;
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
       overflow: hidden;
-      max-height: 75vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .video-control-bar {
+      padding: 0.75rem 1.25rem;
+      background: var(--bg-sidebar);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .speed-pills-group {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .speed-btn {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 0.3rem 0.65rem;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .speed-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+      border-color: var(--border-focus);
+    }
+
+    .speed-btn.active {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    .skip-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .skip-btn:hover {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    .current-speed-indicator {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
     }
 
     .video-viewer-card video {
       width: 100%;
-      max-height: 75vh;
+      max-height: 65vh;
       display: block;
+      background: #000;
     }
 
     .thumb-filmstrip {
@@ -865,7 +934,7 @@ function generateDashboard(targetRootDir) {
           <input type="text" id="searchInput" placeholder="Search test cases or modules...">
         </div>
         
-        <!-- All 4 Quick Nav Buttons Perfectly Fitted & Visible -->
+        <!-- All 4 Quick Nav Buttons (Visible & Responsive) -->
         <div class="category-filter-bar">
           <button class="cat-btn active" data-cat="CMT" title="CMT Modules">
             <div>CMT</div>
@@ -969,13 +1038,37 @@ function generateDashboard(targetRootDir) {
             <div class="thumb-filmstrip" id="thumbFilmstrip"></div>
           </div>
 
-          <!-- Video Viewer Panel -->
+          <!-- Video Viewer Panel with Fast Forward & Speed Toolbar -->
           <div class="viewer-panel" id="panelVideo">
             <div class="video-viewer-card">
               <video id="stageVideoPlayer" controls autoplay loop playsinline>
                 <source id="stageVideoSource" src="" type="video/webm">
                 Your browser does not support the video tag.
               </video>
+              
+              <!-- Fast-Forward & Speed Control Toolbar -->
+              <div class="video-control-bar">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <button class="skip-btn" onclick="skipVideo(-10)" title="Rewind 10 seconds">⏪ -10s</button>
+                  <button class="skip-btn" onclick="skipVideo(-5)" title="Rewind 5 seconds">⏪ -5s</button>
+                  <button class="skip-btn" onclick="skipVideo(5)" title="Fast-forward 5 seconds">⏩ +5s</button>
+                  <button class="skip-btn" onclick="skipVideo(10)" title="Fast-forward 10 seconds">⏩ +10s</button>
+                </div>
+
+                <div class="speed-pills-group">
+                  <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.2rem;">⚡ Speed:</span>
+                  <button class="speed-btn" onclick="setVideoSpeed(0.5)">0.5x</button>
+                  <button class="speed-btn active" id="speed1x" onclick="setVideoSpeed(1)">1x</button>
+                  <button class="speed-btn" onclick="setVideoSpeed(1.5)">1.5x</button>
+                  <button class="speed-btn" onclick="setVideoSpeed(2)">2x</button>
+                  <button class="speed-btn" onclick="setVideoSpeed(3)">3x</button>
+                  <button class="speed-btn" onclick="setVideoSpeed(4)">4x</button>
+                </div>
+
+                <div class="current-speed-indicator" id="currentSpeedDisplay">
+                  Playback: 1.0x
+                </div>
+              </div>
             </div>
           </div>
 
@@ -996,6 +1089,7 @@ function generateDashboard(targetRootDir) {
     let selectedStepIdx = 0;
     let searchQuery = '';
     let stageTab = 'screenshots';
+    let currentPlaybackRate = 1.0;
 
     document.addEventListener('DOMContentLoaded', () => {
       initTheme();
@@ -1025,9 +1119,17 @@ function generateDashboard(targetRootDir) {
 
       document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
+      // Keyboard navigation
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') navStep(-1);
-        if (e.key === 'ArrowRight') navStep(1);
+        if (stageTab === 'screenshots') {
+          if (e.key === 'ArrowLeft') navStep(-1);
+          if (e.key === 'ArrowRight') navStep(1);
+        } else if (stageTab === 'video') {
+          if (e.key === 'ArrowLeft') skipVideo(-5);
+          if (e.key === 'ArrowRight') skipVideo(5);
+          if (e.key === ']') changeSpeedStep(0.5);
+          if (e.key === '[') changeSpeedStep(-0.5);
+        }
       });
     });
 
@@ -1164,6 +1266,7 @@ function generateDashboard(targetRootDir) {
 
       if (selectedReport.videos.length > 0) {
         videoPlayer.src = selectedReport.videos[0].relPath;
+        videoPlayer.playbackRate = currentPlaybackRate;
       } else {
         videoPlayer.src = '';
       }
@@ -1176,6 +1279,33 @@ function generateDashboard(targetRootDir) {
       selectStep(selectedStepIdx);
     }
 
+    /* Video Player Speed & Skip Controls */
+    function setVideoSpeed(speed) {
+      currentPlaybackRate = speed;
+      const videoPlayer = document.getElementById('stageVideoPlayer');
+      if (videoPlayer) {
+        videoPlayer.playbackRate = speed;
+      }
+
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.toggle('active', parseFloat(btn.textContent) === speed);
+      });
+
+      document.getElementById('currentSpeedDisplay').textContent = \`Playback: \${speed}x\`;
+    }
+
+    function changeSpeedStep(delta) {
+      let newSpeed = Math.max(0.5, Math.min(4.0, currentPlaybackRate + delta));
+      setVideoSpeed(newSpeed);
+    }
+
+    function skipVideo(seconds) {
+      const videoPlayer = document.getElementById('stageVideoPlayer');
+      if (videoPlayer) {
+        videoPlayer.currentTime = Math.max(0, Math.min(videoPlayer.duration || 9999, videoPlayer.currentTime + seconds));
+      }
+    }
+
     function setStageTab(tab) {
       stageTab = tab;
       document.getElementById('tabScreenshots').classList.toggle('active', tab === 'screenshots');
@@ -1185,6 +1315,7 @@ function generateDashboard(targetRootDir) {
 
       const videoPlayer = document.getElementById('stageVideoPlayer');
       if (tab === 'video' && selectedReport && selectedReport.videos.length > 0) {
+        videoPlayer.playbackRate = currentPlaybackRate;
         videoPlayer.play().catch(() => {});
       } else {
         videoPlayer.pause();
@@ -1210,7 +1341,7 @@ function generateDashboard(targetRootDir) {
 
   const outputPath = path.join(targetRootDir, 'index.html');
   fs.writeFileSync(outputPath, htmlContent, 'utf8');
-  console.log(`Updated 4-column quick nav bar in: ${outputPath}`);
+  console.log(`Generated Video Fast-Forward Controls in: ${outputPath}`);
 }
 
 generateDashboard('c:\\Users\\viraj\\Desktop\\reports\\DD_V4.6.3_Reports');
