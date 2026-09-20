@@ -1629,14 +1629,16 @@ html, body {
     function handleImgError(imgElement, relPath) {
       if (!imgElement.getAttribute('data-retried')) {
         imgElement.setAttribute('data-retried', '1');
-        imgElement.src = GITHUB_RAW_BASE + '/' + relPath.replace(/^\\.\\//, '');
+        const cleanPath = relPath.startsWith('./') ? relPath.slice(2) : relPath;
+        imgElement.src = GITHUB_RAW_BASE + '/' + cleanPath;
       }
     }
 
     function handleVideoError(videoElement, relPath) {
       if (!videoElement.getAttribute('data-retried')) {
         videoElement.setAttribute('data-retried', '1');
-        videoElement.src = GITHUB_RAW_BASE + '/' + relPath.replace(/^\\.\\//, '');
+        const cleanPath = relPath.startsWith('./') ? relPath.slice(2) : relPath;
+        videoElement.src = GITHUB_RAW_BASE + '/' + cleanPath;
         videoElement.load();
       }
     }
@@ -1872,7 +1874,8 @@ html, body {
       // Video Player Section (if video exists)
       if (hasVideo) {
         const videoLocalUrl = firstVideo.relPath;
-        const videoCloudUrl = firstVideo.cloudUrl || (GITHUB_RAW_BASE + '/' + firstVideo.relPath.replace(/^\.\//, ''));
+        const cleanPath = firstVideo.relPath.startsWith('./') ? firstVideo.relPath.slice(2) : firstVideo.relPath;
+        const videoCloudUrl = firstVideo.cloudUrl || (GITHUB_RAW_BASE + '/' + cleanPath);
 
         html += \`
           <div class="video-section-card">
@@ -2108,9 +2111,10 @@ html, body {
       state.lightbox.isOpen = true;
       state.lightbox.title = title || '';
       
-      let idx = state.lightbox.images.findIndex(img => img.path === imgPath || \`./\${img.path}\` === imgPath);
+      const cleanPath = imgPath.startsWith('./') ? imgPath.slice(2) : imgPath;
+      let idx = state.lightbox.images.findIndex(img => img.path === imgPath || img.path === cleanPath || \`./\${img.path}\` === imgPath);
       if (idx === -1) {
-        state.lightbox.images = [{ path: imgPath.replace(/^\\.\\//, ''), name: title }];
+        state.lightbox.images = [{ path: cleanPath, name: title }];
         idx = 0;
       }
       state.lightbox.currentIndex = idx;
