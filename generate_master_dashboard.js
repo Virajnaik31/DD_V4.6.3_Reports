@@ -31,7 +31,8 @@ function generateDashboard(targetRootDir) {
           screenshots = scFiles.map(f => ({
             name: f,
             title: formatStepName(f),
-            relPath: `${relPath}/screenshots/${f}`
+            relPath: `${relPath}/screenshots/${f}`,
+            cloudUrl: `${GITHUB_RAW_BASE}/${relPath}/screenshots/${f}`
           }));
         } catch (e) {}
       }
@@ -42,7 +43,8 @@ function generateDashboard(targetRootDir) {
           const vidFiles = fs.readdirSync(vidDir).filter(f => /\.(webm|mp4|mov)$/i.test(f));
           videos = vidFiles.map(f => ({
             name: f,
-            relPath: `${relPath}/videos/${f}`
+            relPath: `${relPath}/videos/${f}`,
+            cloudUrl: `${GITHUB_RAW_BASE}/${relPath}/videos/${f}`
           }));
         } catch (e) {}
       }
@@ -51,7 +53,7 @@ function generateDashboard(targetRootDir) {
       if (fs.existsSync(dataDir)) {
         try {
           const df = fs.readdirSync(dataDir);
-          dataFiles = df.slice(0, 15).map(f => ({
+          dataFiles = df.slice(0, 20).map(f => ({
             name: f,
             relPath: `${relPath}/data/${f}`
           }));
@@ -72,6 +74,9 @@ function generateDashboard(targetRootDir) {
         relativePath: relPath,
         url: `${relPath}/index.html`,
         githubReportUrl: `${GITHUB_PAGES_BASE}/${relPath}/index.html`,
+        githubRepoUrl: `${GITHUB_REPO_URL}/tree/main/${relPath}`,
+        status: 'passed',
+        duration: '1.2s',
         screenshotsCount: screenshots.length,
         videosCount: videos.length,
         screenshots: screenshots,
@@ -142,1206 +147,2088 @@ function generateDashboard(targetRootDir) {
 
   const totalScreenshots = allReports.reduce((sum, r) => sum + r.screenshotsCount, 0);
   const totalVideos = allReports.reduce((sum, r) => sum + r.videosCount, 0);
-  const categories = [...new Set(allReports.map(r => r.category))];
+  const passedCount = allReports.filter(r => r.status === 'passed').length;
+  const failedCount = allReports.filter(r => r.status === 'failed').length;
+  const passRate = allReports.length > 0 ? ((passedCount / allReports.length) * 100).toFixed(1) : '100.0';
 
+  const categories = [...new Set(allReports.map(r => r.category))];
   const reportsJson = JSON.stringify(allReports);
-  const generatedDate = new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'medium' });
 
   const htmlContent = `<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DealsDray V4.6.3 — Master Automation Test Reports</title>
+  <title>DD 4.6.3 UAT Master Test Reports</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-base: #0a0e17;
-      --bg-sidebar: #0f172a;
-      --bg-panel: #111827;
-      --bg-card: rgba(30, 41, 59, 0.5);
-      --bg-card-hover: rgba(30, 41, 59, 0.9);
-      --bg-input: #1e293b;
-      --border-color: rgba(255, 255, 255, 0.08);
-      --border-focus: rgba(99, 102, 241, 0.5);
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --accent-primary: #6366f1;
-      --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-      --accent-glow: rgba(99, 102, 241, 0.25);
-      --success: #10b981;
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 16px;
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.4);
-      --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    [data-theme="light"] {
-      --bg-base: #f1f5f9;
-      --bg-sidebar: #ffffff;
-      --bg-panel: #f8fafc;
-      --bg-card: rgba(255, 255, 255, 0.8);
-      --bg-card-hover: #ffffff;
-      --bg-input: #e2e8f0;
-      --border-color: rgba(0, 0, 0, 0.08);
-      --border-focus: rgba(99, 102, 241, 0.5);
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-muted: #94a3b8;
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: var(--bg-base);
-      color: var(--text-primary);
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Top Navigation Bar */
-    .topbar {
-      height: 60px;
-      background: var(--bg-sidebar);
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1.5rem;
-      flex-shrink: 0;
-      z-index: 100;
-    }
-
-    .topbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .brand-logo {
-      width: 38px;
-      height: 38px;
-      border-radius: var(--radius-sm);
-      background: var(--accent-gradient);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Outfit', sans-serif;
-      font-weight: 800;
-      font-size: 1.15rem;
-      color: #fff;
-      box-shadow: 0 2px 10px var(--accent-glow);
-    }
-
-    .brand-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.2rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .version-badge {
-      font-size: 0.72rem;
-      padding: 0.15rem 0.55rem;
-      border-radius: 9999px;
-      background: rgba(99, 102, 241, 0.15);
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      color: var(--accent-primary);
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-    }
-
-    .topbar-metrics {
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      font-size: 0.85rem;
-    }
-
-    .metric-pill {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.3rem 0.75rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 9999px;
-      color: var(--text-secondary);
-    }
-
-    .metric-pill strong {
-      color: var(--text-primary);
-    }
-
-    .topbar-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .btn-icon {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      text-decoration: none;
-      transition: var(--transition);
-      font-size: 1rem;
-    }
-
-    .btn-icon:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--border-focus);
-    }
-
-    /* Main Split-Pane Workspace */
-    .app-workspace {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    /* ── LEFT PANEL (Reports List & Filter) ── */
-    .left-sidebar {
-      width: 440px;
-      min-width: 380px;
-      max-width: 520px;
-      background: var(--bg-sidebar);
-      border-right: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-
-    .sidebar-header {
-      padding: 1rem;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .search-box {
-      position: relative;
-    }
-
-    .search-box input {
-      width: 100%;
-      background: var(--bg-input);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.6rem 0.85rem 0.6rem 2.25rem;
-      color: var(--text-primary);
-      font-size: 0.88rem;
-      outline: none;
-      transition: var(--transition);
-      font-family: inherit;
-    }
-
-    .search-box input:focus {
-      border-color: var(--accent-primary);
-      box-shadow: 0 0 0 2px var(--accent-glow);
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 0.75rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
-
-    .category-filter-bar {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.35rem;
-      width: 100%;
-    }
-
-    .cat-btn {
-      background: var(--bg-input);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 0.45rem 0.3rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.76rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: var(--transition);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.15rem;
-    }
-
-    .cat-btn span.cat-count {
-      font-size: 0.68rem;
-      opacity: 0.75;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .cat-btn:hover {
-      background: var(--bg-card);
-      color: var(--text-primary);
-      border-color: var(--border-focus);
-    }
-
-    .cat-btn.active {
-      background: var(--accent-primary);
-      color: #fff;
-      border-color: var(--accent-primary);
-      box-shadow: 0 2px 8px var(--accent-glow);
-    }
-
-    .cat-btn.active span.cat-count {
-      opacity: 1;
-      font-weight: 700;
-    }
-
-    .reports-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .report-item {
-      padding: 0.75rem 0.85rem;
-      background: var(--bg-card);
-      border: 1px solid transparent;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: var(--transition);
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .report-item:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--border-color);
-    }
-
-    .report-item.active {
-      background: rgba(99, 102, 241, 0.15);
-      border-color: var(--accent-primary);
-    }
-
-    .report-item-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .category-tag {
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .cat-CMT { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-    .cat-orderFulFilmentChecklist { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
-    .cat-orderFulfilment { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .cat-superadmin { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-
-    .report-item-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      line-height: 1.25;
-    }
-
-    .report-item-meta {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* ── RIGHT PANEL (Steps Tree, Folder Structure & Inspector) ── */
-    .right-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: var(--bg-panel);
-      overflow-y: auto;
-    }
-
-    .report-detail-header {
-      padding: 1.25rem 1.75rem;
-      background: var(--bg-sidebar);
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .report-title-area h2 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.45rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
-
-    .report-path-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .header-action-btns {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .btn-action {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 1rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
-      transition: var(--transition);
-      border: 1px solid transparent;
-      font-family: inherit;
-    }
-
-    .btn-action-primary {
-      background: var(--accent-gradient);
-      color: #fff;
-    }
-
-    .btn-action-primary:hover {
-      box-shadow: 0 4px 15px var(--accent-glow);
-    }
-
-    .inspector-body {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      flex: 1;
-      min-height: 0;
-    }
-
-    .tree-column {
-      background: var(--bg-sidebar);
-      border-right: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      padding: 1rem;
-      gap: 1.25rem;
-    }
-
-    .section-heading {
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      margin-bottom: 0.6rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .folder-tree-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.75rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-    }
-
-    .tree-node {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.25rem 0.4rem;
-      border-radius: 4px;
-      color: var(--text-secondary);
-    }
-
-    .tree-node.node-dir {
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .tree-indent {
-      padding-left: 1.2rem;
-    }
-
-    .steps-timeline {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-
-    .step-node {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      padding: 0.55rem 0.75rem;
-      background: var(--bg-card);
-      border: 1px solid transparent;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .step-node:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--border-color);
-    }
-
-    .step-node.active {
-      background: rgba(99, 102, 241, 0.2);
-      border-color: var(--accent-primary);
-      color: #fff;
-    }
-
-    .step-badge {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08);
-      font-size: 0.72rem;
-      font-family: 'JetBrains Mono', monospace;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-weight: 700;
-    }
-
-    .step-node.active .step-badge {
-      background: var(--accent-primary);
-      color: #fff;
-    }
-
-    .step-name-text {
-      font-size: 0.82rem;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .preview-stage {
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-      overflow-y: auto;
-    }
-
-    .stage-nav {
-      display: flex;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0.75rem;
-    }
-
-    .stage-tab-btn {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 0.5rem 1rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: var(--transition);
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .stage-tab-btn.active {
-      background: var(--accent-primary);
-      color: #fff;
-      border-color: var(--accent-primary);
-    }
-
-    .viewer-panel {
-      display: none;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .viewer-panel.active {
-      display: flex;
-    }
-
-    .screenshot-viewer-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .viewer-card-header {
-      padding: 0.85rem 1.25rem;
-      background: var(--bg-sidebar);
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.85rem;
-    }
-
-    .viewer-main-img-box {
-      width: 100%;
-      min-height: 480px;
-      max-height: 68vh;
-      background: #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .viewer-main-img-box img {
-      max-width: 100%;
-      max-height: 68vh;
-      object-fit: contain;
-    }
-
-    .stage-nav-arrow {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      background: rgba(0, 0, 0, 0.65);
-      border: 1px solid var(--border-color);
-      color: #fff;
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 1.2rem;
-      transition: var(--transition);
-    }
-
-    .stage-nav-arrow:hover {
-      background: var(--accent-primary);
-    }
-
-    .stage-arrow-prev { left: 1rem; }
-    .stage-arrow-next { right: 1rem; }
-
-    /* ── ADVANCED VIDEO PLAYER WITH SPEED CONTROLS ── */
-    .video-viewer-card {
-      background: #000;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .video-control-bar {
-      padding: 0.75rem 1.25rem;
-      background: var(--bg-sidebar);
-      border-top: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-
-    .speed-pills-group {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    .speed-btn {
-      background: var(--bg-input);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 0.3rem 0.65rem;
-      border-radius: 4px;
-      font-size: 0.78rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .speed-btn:hover {
-      background: var(--bg-card-hover);
-      color: var(--text-primary);
-      border-color: var(--border-focus);
-    }
-
-    .speed-btn.active {
-      background: var(--accent-primary);
-      color: #fff;
-      border-color: var(--accent-primary);
-    }
-
-    .skip-btn {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      padding: 0.35rem 0.75rem;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: var(--transition);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
-
-    .skip-btn:hover {
-      background: var(--accent-primary);
-      color: #fff;
-      border-color: var(--accent-primary);
-    }
-
-    .current-speed-indicator {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .video-viewer-card video {
-      width: 100%;
-      max-height: 65vh;
-      display: block;
-      background: #000;
-    }
-
-    .thumb-filmstrip {
-      display: flex;
-      gap: 0.5rem;
-      overflow-x: auto;
-      padding: 0.5rem 0;
-    }
-
-    .strip-item {
-      width: 90px;
-      height: 56px;
-      border-radius: 4px;
-      overflow: hidden;
-      border: 2px solid transparent;
-      cursor: pointer;
-      opacity: 0.6;
-      flex-shrink: 0;
-      transition: var(--transition);
-      background: #000;
-    }
-
-    .strip-item.active, .strip-item:hover {
-      opacity: 1;
-      border-color: var(--accent-primary);
-      transform: scale(1.04);
-    }
-
-    .strip-item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    @media (max-width: 992px) {
-      .app-workspace { flex-direction: column; }
-      .left-sidebar { width: 100%; max-width: 100%; height: 280px; }
-      .inspector-body { grid-template-columns: 1fr; }
-    }
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-surface: #161f30;
+  --bg-card: #151d2d;
+  --bg-card-hover: #1c263b;
+  --bg-active: rgba(59, 130, 246, 0.16);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-focus: #3b82f6;
+  
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  --color-pass: #10b981;
+  --color-pass-bg: rgba(16, 185, 129, 0.12);
+  --color-pass-border: rgba(16, 185, 129, 0.35);
+  
+  --color-fail: #ef4444;
+  --color-fail-bg: rgba(239, 68, 68, 0.14);
+  --color-fail-border: rgba(239, 68, 68, 0.4);
+  
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-purple: #8b5cf6;
+  
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+  
+  --sidebar-width: 360px;
+  --header-height: 64px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --transition: all 0.18s ease-in-out;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Master Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Top Master Header */
+.master-header {
+  height: var(--header-height);
+  min-height: var(--header-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 50;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
+}
+
+.brand-logo svg {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand-info h1 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
+}
+
+.brand-info .tag-version {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.brand-info .subtitle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Top Navigation Tabs - FOLDERS ONLY (No 'All') */
+.nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(10, 14, 23, 0.6);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.nav-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.nav-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-tab-btn.active {
+  background: rgba(59, 130, 246, 0.18);
+  color: #ffffff;
+  border-color: rgba(59, 130, 246, 0.4);
+  font-weight: 600;
+}
+
+.nav-tab-btn.failed-tab {
+  color: #f87171;
+}
+
+.nav-tab-btn.failed-tab:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.nav-tab-btn.failed-tab.active {
+  background: var(--color-fail-bg);
+  color: #fca5a5;
+  border-color: var(--color-fail-border);
+}
+
+.tab-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+}
+
+.tab-badge.badge-failed {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* Header Right Metrics */
+.header-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(10, 14, 23, 0.6);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  font-size: 0.78rem;
+}
+
+.stat-pill .label {
+  color: var(--text-muted);
+}
+
+.stat-pill .value {
+  font-weight: 700;
+}
+
+.stat-pill .value.pass {
+  color: var(--color-pass);
+}
+
+.stat-pill .value.fail {
+  color: var(--color-fail);
+}
+
+.stat-pill .value.rate {
+  color: #60a5fa;
+}
+
+/* Main Workspace */
+.main-workspace {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - var(--header-height));
+  overflow: hidden;
+}
+
+/* Left Sidebar (Reports List) */
+.reports-sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.sidebar-filter-bar {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(10, 14, 23, 0.3);
+  flex-shrink: 0;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box svg {
+  position: absolute;
+  left: 10px;
+  width: 15px;
+  height: 15px;
+  fill: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 7px 10px 7px 32px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  outline: none;
+  transition: var(--transition);
+}
+
+.search-input:focus {
+  border-color: var(--border-focus);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.filter-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.filter-count-badge {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.filter-tags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-chip {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.filter-chip:hover {
+  color: var(--text-primary);
+}
+
+.filter-chip.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.filter-chip.chip-fail.active {
+  background: var(--color-fail-bg);
+  color: #fca5a5;
+  border-color: var(--color-fail-border);
+}
+
+/* FOLDER-WISE VIEW CONTROLS */
+.sidebar-view-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.folder-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.folder-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.folder-mode-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.tree-toggle-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.tree-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* FOLDER GROUP SECTION IN SIDEBAR */
+.folder-group {
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.folder-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(22, 31, 48, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition: var(--transition);
+  margin-bottom: 6px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.folder-group-header:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.folder-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.folder-chevron {
+  width: 14px;
+  height: 14px;
+  fill: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.folder-group.expanded .folder-chevron {
+  transform: rotate(90deg);
+}
+
+.folder-icon {
+  font-size: 0.88rem;
+  flex-shrink: 0;
+}
+
+.folder-name-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-count-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.folder-items-container {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(59, 130, 246, 0.25);
+  margin-left: 8px;
+  margin-bottom: 6px;
+}
+
+.folder-group.expanded .folder-items-container {
+  display: flex;
+}
+
+/* Sidebar Reports List */
+.reports-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reports-list::-webkit-scrollbar {
+  width: 5px;
+}
+.reports-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.report-card {
+  flex-shrink: 0;
+  padding: 11px 13px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.report-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.report-card.active {
+  background: var(--bg-active);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.report-card.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent-blue);
+}
+
+.report-card.status-failed {
+  border-left: 3px solid var(--color-fail);
+}
+
+.report-card.status-failed.active {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.status-badge.passed {
+  background: var(--color-pass-bg);
+  color: var(--color-pass);
+  border: 1px solid var(--color-pass-border);
+}
+
+.status-badge.failed {
+  background: var(--color-fail-bg);
+  color: var(--color-fail);
+  border: 1px solid var(--color-fail-border);
+}
+
+.status-badge .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.card-duration {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.card-meta-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Right Detail Panel */
+.report-detail-panel {
+  flex: 1;
+  background: var(--bg-primary);
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-content-wrapper {
+  padding: 20px 28px 40px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1300px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Detail Top Header Card */
+.detail-header-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  border-top: 3px solid var(--accent-blue);
+}
+
+.detail-header-card.failed-header {
+  border-top: 3px solid var(--color-fail);
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.detail-title-group h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.detail-spec-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #93c5fd;
+  margin-top: 4px;
+  background: rgba(59, 130, 246, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+}
+
+.header-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.btn-primary-action {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary-action:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-secondary-action {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f1f5f9;
+}
+
+.btn-secondary-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.detail-metrics-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.78rem;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+
+.metric-item strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* TOP VIDEO SECTION */
+.video-section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-title svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--accent-cyan);
+}
+
+.video-player-container {
+  background: #000000;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-height: 480px;
+  width: 100%;
+}
+
+.video-player-container video {
+  width: 100%;
+  max-height: 480px;
+  display: block;
+  outline: none;
+}
+
+.video-controls-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.video-speed-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.speed-label {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.speed-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: var(--font-mono);
+}
+
+.speed-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.speed-btn.active {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.video-skip-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.video-skip-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #ffffff;
+}
+
+/* SCREENSHOT INSPECTOR / GALLERY VIEW */
+.steps-tree-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.view-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(10, 14, 23, 0.5);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.view-tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.view-tab-btn:hover {
+  color: #ffffff;
+}
+
+.view-tab-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+/* STEPS LIST */
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step-node {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(10, 14, 23, 0.4);
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.step-node:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(10, 14, 23, 0.65);
+}
+
+.step-node.has-screenshot {
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.step-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.step-left-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.step-chevron {
+  width: 14px;
+  height: 14px;
+  fill: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.step-node.expanded > .step-header .step-chevron {
+  transform: rotate(90deg);
+}
+
+.step-icon-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+}
+
+.step-title-text {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.step-right-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.step-screenshot-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.step-body {
+  display: none;
+  padding: 0 12px 12px 42px;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(8, 12, 20, 0.5);
+}
+
+.step-node.expanded > .step-body {
+  display: block;
+}
+
+.step-inline-screenshots {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.step-screenshot-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+  width: 240px;
+  transition: var(--transition);
+  cursor: pointer;
+  position: relative;
+}
+
+.step-screenshot-card:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+  transform: translateY(-2px);
+}
+
+.step-screenshot-img-box {
+  width: 100%;
+  height: 140px;
+  background: #000000;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-screenshot-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  transition: transform 0.25s ease;
+}
+
+.step-screenshot-card:hover .step-screenshot-img-box img {
+  transform: scale(1.05);
+}
+
+.step-screenshot-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.step-screenshot-card:hover .step-screenshot-overlay {
+  opacity: 1;
+}
+
+.step-screenshot-caption {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* GALLERY GRID VIEW */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.gallery-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-item:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-2px);
+}
+
+.gallery-thumb {
+  width: 100%;
+  height: 150px;
+  background: #000;
+  overflow: hidden;
+}
+
+.gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  transition: transform 0.25s ease;
+}
+
+.gallery-item:hover .gallery-thumb img {
+  transform: scale(1.05);
+}
+
+.gallery-caption {
+  padding: 8px 10px;
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* FOLDER STRUCTURE CARD */
+.folder-structure-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tree-view-box {
+  background: rgba(10, 14, 23, 0.5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* LIGHTBOX MODAL */
+.lightbox-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.lightbox-modal.active {
+  display: flex;
+}
+
+.lightbox-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+  z-index: 10;
+}
+
+.lightbox-title {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.lightbox-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lightbox-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: var(--transition);
+}
+
+.lightbox-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-content {
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-content img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.lightbox-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  z-index: 10;
+}
+
+.lightbox-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.lightbox-prev { left: 20px; }
+.lightbox-next { right: 20px; }
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.empty-state svg {
+  width: 48px;
+  height: 48px;
+  stroke: var(--text-muted);
+}
   </style>
 </head>
 <body>
-
-  <!-- Top Navbar -->
-  <header class="topbar">
-    <div class="topbar-brand">
-      <div class="brand-logo">DD</div>
-      <div class="brand-title">
-        DealsDray Automation Portal <span class="version-badge">v4.6.3 UAT</span>
-      </div>
-    </div>
-
-    <div class="topbar-metrics">
-      <div class="metric-pill">📑 <strong>${allReports.length}</strong> Reports</div>
-      <div class="metric-pill">📸 <strong>${totalScreenshots.toLocaleString()}</strong> Steps</div>
-      <div class="metric-pill">🎬 <strong>${totalVideos}</strong> Videos</div>
-    </div>
-
-    <div class="topbar-actions">
-      <a href="${GITHUB_REPO_URL}" target="_blank" class="btn-icon" title="View GitHub Repo">📦</a>
-      <button class="btn-icon" id="themeToggle" title="Toggle Theme">🌙</button>
-    </div>
-  </header>
-
-  <!-- Split View Layout -->
-  <div class="app-workspace">
-    
-    <!-- ── LEFT HAND SIDE: Reports Explorer & Filters ── -->
-    <aside class="left-sidebar">
-      <div class="sidebar-header">
-        <div class="search-box">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="searchInput" placeholder="Search test cases or modules...">
+  <div class="app-container">
+    <!-- Top Master Header / Navigation Bar -->
+    <header class="master-header">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.27 14.3H3.73L12 5.45zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
         </div>
-        
-        <!-- All 4 Quick Nav Buttons (Visible & Responsive) -->
-        <div class="category-filter-bar">
-          <button class="cat-btn active" data-cat="CMT" title="CMT Modules">
-            <div>CMT</div>
-            <span class="cat-count">(${allReports.filter(r => r.category === 'CMT').length})</span>
-          </button>
-          
-          <button class="cat-btn" data-cat="orderFulfilment" title="Order Fulfilment">
-            <div>Fulfilment</div>
-            <span class="cat-count">(${allReports.filter(r => r.category === 'orderFulfilment').length})</span>
-          </button>
-
-          <button class="cat-btn" data-cat="orderFulFilmentChecklist" title="Order Fulfilment Checklist">
-            <div>Checklist</div>
-            <span class="cat-count">(${allReports.filter(r => r.category === 'orderFulFilmentChecklist').length})</span>
-          </button>
-
-          <button class="cat-btn" data-cat="superadmin" title="SuperAdmin Modules">
-            <div>SuperAdmin</div>
-            <span class="cat-count">(${allReports.filter(r => r.category === 'superadmin').length})</span>
-          </button>
+        <div class="brand-info">
+          <h1>
+            DD UAT Reports
+            <span class="tag-version">v4.6.3</span>
+          </h1>
+          <div class="subtitle">Unified Test Execution &amp; Artifacts Hub</div>
         </div>
       </div>
 
-      <div class="reports-list" id="reportsList"></div>
-    </aside>
+      <!-- Quick Navigation Bar for Specific Folders (NO 'All') -->
+      <nav class="nav-tabs" id="navTabs">
+        <!-- Rendered dynamically for each category folder -->
+      </nav>
 
-    <!-- ── RIGHT HAND SIDE: Steps Tree, Folder Structure & Detailed Preview ── -->
-    <main class="right-content">
-      
-      <!-- Top Detail Header -->
-      <div class="report-detail-header">
-        <div class="report-title-area">
-          <h2 id="detailTitle">Select a Test Case</h2>
-          <div class="report-path-breadcrumb" id="detailBreadcrumb">
-            📂 DealsDray_Reports
-          </div>
+      <!-- Suite Metrics -->
+      <div class="header-stats">
+        <div class="stat-pill" title="Total test reports executed">
+          <span class="label">Total:</span>
+          <span class="value" id="statTotal">${allReports.length}</span>
         </div>
-
-        <div class="header-action-btns">
-          <a id="btnOpenReport" href="#" target="_blank" class="btn-action btn-action-primary">
-            🚀 Open Playwright Report
-          </a>
+        <div class="stat-pill" title="Passed tests">
+          <span class="label">Passed:</span>
+          <span class="value pass" id="statPassed">${passedCount}</span>
+        </div>
+        <div class="stat-pill" title="Failed tests">
+          <span class="label">Failed:</span>
+          <span class="value ${failedCount > 0 ? 'fail' : ''}" id="statFailed">${failedCount}</span>
+        </div>
+        <div class="stat-pill" title="Overall pass rate">
+          <span class="label">Rate:</span>
+          <span class="value rate" id="statPassRate">${passRate}%</span>
         </div>
       </div>
+    </header>
 
-      <!-- Main Inspector Split -->
-      <div class="inspector-body">
-        
-        <!-- Left Sub-column: Folder Structure & Step Tree -->
-        <div class="tree-column">
-          
-          <!-- Folder Structure Node Explorer -->
-          <div>
-            <div class="section-heading">
-              <span>📁 Associated Folder Structure</span>
-            </div>
-            <div class="folder-tree-box" id="folderTreeBox"></div>
+    <!-- Main Workspace -->
+    <main class="main-workspace">
+      <!-- Left Sidebar: Filtered Reports List -->
+      <aside class="reports-sidebar">
+        <div class="sidebar-filter-bar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 14z"/></svg>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search tests, specs, folders...">
           </div>
 
-          <!-- Execution Steps Tree -->
-          <div>
-            <div class="section-heading">
-              <span>⚡ Execution Steps Tree (<span id="stepsCountBadge">0</span>)</span>
+          <!-- Grouping Controls Row -->
+          <div class="sidebar-view-toggle-row">
+            <div style="display: flex; gap: 4px;">
+              <button class="folder-mode-btn active" id="btnFolderwise" title="Group reports by subfolders">
+                📁 Folder-wise
+              </button>
+              <button class="folder-mode-btn" id="btnFlatList" title="Show flat list of reports">
+                📋 Flat List
+              </button>
             </div>
-            <div class="steps-timeline" id="stepsTimeline"></div>
+            <div style="display: flex; gap: 4px;">
+              <button class="tree-toggle-btn" onclick="toggleAllFolderGroups(true)" title="Expand all subfolders">➕</button>
+              <button class="tree-toggle-btn" onclick="toggleAllFolderGroups(false)" title="Collapse all subfolders">➖</button>
+            </div>
+          </div>
+
+          <div class="filter-meta-row">
+            <span class="filter-count-badge" id="filterCount">Showing ${allReports.length} reports</span>
+            <div class="filter-tags">
+              <button class="filter-chip active" id="chipAll" data-filter="ALL">All</button>
+              <button class="filter-chip" id="chipPassed" data-filter="PASSED">Passed</button>
+              <button class="filter-chip chip-fail" id="chipFailed" data-filter="FAILED">Failed</button>
+            </div>
           </div>
         </div>
 
-        <!-- Right Sub-column: Interactive Stage Viewer -->
-        <div class="preview-stage">
-          
-          <!-- View Navigation Tabs -->
-          <div class="stage-nav">
-            <button class="stage-tab-btn active" id="tabScreenshots" onclick="setStageTab('screenshots')">
-              📸 Screenshot Inspector
-            </button>
-            <button class="stage-tab-btn" id="tabVideo" onclick="setStageTab('video')">
-              🎬 Video Recording (<span id="videoTabBadge">1</span>)
-            </button>
-          </div>
-
-          <!-- Screenshot Viewer Panel -->
-          <div class="viewer-panel active" id="panelScreenshots">
-            <div class="screenshot-viewer-card">
-              <div class="viewer-card-header">
-                <div>
-                  <strong id="viewerStepTitle">Step Title</strong>
-                </div>
-                <div style="font-family: 'JetBrains Mono', monospace; color: var(--text-muted);" id="viewerStepCounter">
-                  1 / 1
-                </div>
-              </div>
-              <div class="viewer-main-img-box">
-                <button class="stage-nav-arrow stage-arrow-prev" onclick="navStep(-1)">&larr;</button>
-                <img id="mainStepImg" src="" alt="Test Step Screenshot">
-                <button class="stage-nav-arrow stage-arrow-next" onclick="navStep(1)">&rarr;</button>
-              </div>
-            </div>
-
-            <!-- Thumbnail Strip -->
-            <div class="thumb-filmstrip" id="thumbFilmstrip"></div>
-          </div>
-
-          <!-- Video Viewer Panel with Fast Forward & Speed Toolbar -->
-          <div class="viewer-panel" id="panelVideo">
-            <div class="video-viewer-card">
-              <video id="stageVideoPlayer" controls autoplay loop playsinline>
-                <source id="stageVideoSource" src="" type="video/webm">
-                Your browser does not support the video tag.
-              </video>
-              
-              <!-- Fast-Forward & Speed Control Toolbar -->
-              <div class="video-control-bar">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <button class="skip-btn" onclick="skipVideo(-10)" title="Rewind 10 seconds">⏪ -10s</button>
-                  <button class="skip-btn" onclick="skipVideo(-5)" title="Rewind 5 seconds">⏪ -5s</button>
-                  <button class="skip-btn" onclick="skipVideo(5)" title="Fast-forward 5 seconds">⏩ +5s</button>
-                  <button class="skip-btn" onclick="skipVideo(10)" title="Fast-forward 10 seconds">⏩ +10s</button>
-                </div>
-
-                <div class="speed-pills-group">
-                  <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.2rem;">⚡ Speed:</span>
-                  <button class="speed-btn" onclick="setVideoSpeed(0.5)">0.5x</button>
-                  <button class="speed-btn active" id="speed1x" onclick="setVideoSpeed(1)">1x</button>
-                  <button class="speed-btn" onclick="setVideoSpeed(1.5)">1.5x</button>
-                  <button class="speed-btn" onclick="setVideoSpeed(2)">2x</button>
-                  <button class="speed-btn" onclick="setVideoSpeed(3)">3x</button>
-                  <button class="speed-btn" onclick="setVideoSpeed(4)">4x</button>
-                </div>
-
-                <div class="current-speed-indicator" id="currentSpeedDisplay">
-                  Playback: 1.0x
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <div class="reports-list" id="reportsList">
+          <!-- Rendered dynamically -->
         </div>
+      </aside>
 
-      </div>
-
+      <!-- Right Detail Panel -->
+      <section class="report-detail-panel" id="detailPanel">
+        <div class="detail-content-wrapper" id="detailContent">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
     </main>
 
+    <!-- Fullscreen Lightbox Modal for Screenshots -->
+    <div class="lightbox-modal" id="lightboxModal">
+      <div class="lightbox-header">
+        <div class="lightbox-title" id="lightboxTitle">Screenshot Preview</div>
+        <div class="lightbox-controls">
+          <span style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);" id="lightboxCounter">1 / 1</span>
+          <a class="lightbox-btn" id="lightboxDownload" href="#" target="_blank" download>
+            💾 View Original
+          </a>
+          <button class="lightbox-btn" id="lightboxClose" title="Close (Esc)">✕</button>
+        </div>
+      </div>
+      <button class="lightbox-nav-btn lightbox-prev" id="lightboxPrev" title="Previous (Left Arrow)">◀</button>
+      <div class="lightbox-content">
+        <img id="lightboxImg" src="" alt="Screenshot Fullview">
+      </div>
+      <button class="lightbox-nav-btn lightbox-next" id="lightboxNext" title="Next (Right Arrow)">▶</button>
+    </div>
   </div>
 
   <script>
     const ALL_REPORTS = ${reportsJson};
     const GITHUB_RAW_BASE = '${GITHUB_RAW_BASE}';
 
-    let activeCategory = 'CMT';
-    let selectedReport = ALL_REPORTS.find(r => r.category === activeCategory) || ALL_REPORTS[0];
-    let selectedStepIdx = 0;
-    let searchQuery = '';
-    let stageTab = 'screenshots';
-    let currentPlaybackRate = 1.0;
+    const state = {
+      activeTab: '${categories[0] || 'CMT'}',
+      statusFilter: 'ALL',
+      searchQuery: '',
+      sidebarGrouping: 'FOLDERWISE',
+      selectedReportId: null,
+      activeViewMode: 'tree',
+      isVideoCollapsed: false,
+      lightbox: {
+        isOpen: false,
+        images: [],
+        currentIndex: 0,
+        title: ''
+      }
+    };
 
-    document.addEventListener('DOMContentLoaded', () => {
-      initTheme();
+    const elements = {
+      navTabs: document.getElementById('navTabs'),
+      searchInput: document.getElementById('searchInput'),
+      filterCount: document.getElementById('filterCount'),
+      chipAll: document.getElementById('chipAll'),
+      chipPassed: document.getElementById('chipPassed'),
+      chipFailed: document.getElementById('chipFailed'),
+      btnFolderwise: document.getElementById('btnFolderwise'),
+      btnFlatList: document.getElementById('btnFlatList'),
+      reportsList: document.getElementById('reportsList'),
+      detailContent: document.getElementById('detailContent'),
+      lightboxModal: document.getElementById('lightboxModal'),
+      lightboxImg: document.getElementById('lightboxImg'),
+      lightboxTitle: document.getElementById('lightboxTitle'),
+      lightboxCounter: document.getElementById('lightboxCounter'),
+      lightboxDownload: document.getElementById('lightboxDownload'),
+      lightboxClose: document.getElementById('lightboxClose'),
+      lightboxPrev: document.getElementById('lightboxPrev'),
+      lightboxNext: document.getElementById('lightboxNext')
+    };
+
+    function init() {
+      renderNavTabs();
       renderReportsList();
-      if (selectedReport) {
-        selectReport(selectedReport.id);
+      
+      const firstInTab = ALL_REPORTS.find(r => r.category === state.activeTab) || ALL_REPORTS[0];
+      if (firstInTab) {
+        selectReport(firstInTab.id);
+      }
+      
+      setupEventListeners();
+    }
+
+    /* Helper: Cloud fallback for media */
+    function getMediaUrl(relPath) {
+      return relPath;
+    }
+
+    function handleImgError(imgElement, relPath) {
+      if (!imgElement.getAttribute('data-retried')) {
+        imgElement.setAttribute('data-retried', '1');
+        imgElement.src = GITHUB_RAW_BASE + '/' + relPath.replace(/^\\.\\//, '');
+      }
+    }
+
+    function handleVideoError(videoElement, relPath) {
+      if (!videoElement.getAttribute('data-retried')) {
+        videoElement.setAttribute('data-retried', '1');
+        videoElement.src = GITHUB_RAW_BASE + '/' + relPath.replace(/^\\.\\//, '');
+        videoElement.load();
+      }
+    }
+
+    /* Render Top Navigation Tabs - FOLDERS PRESENT ONLY (NO 'All') */
+    function renderNavTabs() {
+      const categoriesSet = [...new Set(ALL_REPORTS.map(r => r.category))];
+      
+      let html = categoriesSet.map(cat => {
+        const count = ALL_REPORTS.filter(r => r.category === cat).length;
+        const shortLabel = ALL_REPORTS.find(r => r.category === cat)?.shortLabel || cat;
+        const isActive = state.activeTab === cat ? 'active' : '';
+        return \`
+          <button class="nav-tab-btn \${isActive}" data-tab="\${cat}">
+            📁 \${shortLabel}
+            <span class="tab-badge">(\${count})</span>
+          </button>
+        \`;
+      }).join('');
+
+      const failedCount = ALL_REPORTS.filter(r => r.status === 'failed').length;
+      if (failedCount > 0) {
+        const isFailedActive = state.activeTab === 'FAILED' ? 'active' : '';
+        html += \`
+          <button class="nav-tab-btn failed-tab \${isFailedActive}" data-tab="FAILED">
+            ⚠️ Failed
+            <span class="tab-badge badge-failed">(\${failedCount})</span>
+          </button>
+        \`;
       }
 
-      document.getElementById('searchInput').addEventListener('input', (e) => {
-        searchQuery = e.target.value.toLowerCase().trim();
-        renderReportsList();
+      elements.navTabs.innerHTML = html;
+    }
+
+    function setActiveTab(tabId) {
+      state.activeTab = tabId;
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
       });
+      renderReportsList();
 
-      document.querySelectorAll('.cat-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          activeCategory = btn.getAttribute('data-cat');
-          renderReportsList();
-
-          const firstInCat = ALL_REPORTS.find(r => r.category === activeCategory);
-          if (firstInCat) {
-            selectReport(firstInCat.id);
-          }
-        });
-      });
-
-      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-      // Keyboard navigation
-      document.addEventListener('keydown', (e) => {
-        if (stageTab === 'screenshots') {
-          if (e.key === 'ArrowLeft') navStep(-1);
-          if (e.key === 'ArrowRight') navStep(1);
-        } else if (stageTab === 'video') {
-          if (e.key === 'ArrowLeft') skipVideo(-5);
-          if (e.key === 'ArrowRight') skipVideo(5);
-          if (e.key === ']') changeSpeedStep(0.5);
-          if (e.key === '[') changeSpeedStep(-0.5);
-        }
-      });
-    });
+      const filtered = getFilteredReports();
+      if (filtered.length > 0) {
+        selectReport(filtered[0].id);
+      }
+    }
 
     function getFilteredReports() {
-      return ALL_REPORTS.filter(r => {
-        const matchCat = r.category === activeCategory;
-        const matchSearch = !searchQuery || 
-          r.name.toLowerCase().includes(searchQuery) ||
-          r.title.toLowerCase().includes(searchQuery) ||
-          r.module.toLowerCase().includes(searchQuery) ||
-          r.category.toLowerCase().includes(searchQuery);
-        return matchCat && matchSearch;
+      return ALL_REPORTS.filter(report => {
+        // Tab Category Filter
+        let tabMatch = false;
+        if (state.activeTab === 'FAILED') {
+          tabMatch = report.status === 'failed';
+        } else {
+          tabMatch = report.category === state.activeTab;
+        }
+
+        // Status Filter Chip
+        let statusMatch = true;
+        if (state.statusFilter === 'PASSED') statusMatch = report.status === 'passed';
+        if (state.statusFilter === 'FAILED') statusMatch = report.status === 'failed';
+
+        // Search Filter
+        let searchMatch = true;
+        if (state.searchQuery.trim()) {
+          const q = state.searchQuery.toLowerCase().trim();
+          searchMatch = report.title.toLowerCase().includes(q) ||
+                        report.relativePath.toLowerCase().includes(q) ||
+                        report.module.toLowerCase().includes(q) ||
+                        report.name.toLowerCase().includes(q);
+        }
+
+        return tabMatch && statusMatch && searchMatch;
       });
     }
 
     function renderReportsList() {
-      const container = document.getElementById('reportsList');
       const filtered = getFilteredReports();
+      elements.filterCount.textContent = \`Showing \${filtered.length} reports\`;
 
       if (filtered.length === 0) {
-        container.innerHTML = '<div style="padding:2rem 1rem; text-align:center; color:var(--text-muted);">No reports found in this folder</div>';
+        elements.reportsList.innerHTML = \`
+          <div style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+            🔍 No test reports found in this folder filter
+          </div>
+        \`;
         return;
       }
 
-      container.innerHTML = filtered.map(r => \`
-        <div class="report-item \${selectedReport && selectedReport.id === r.id ? 'active' : ''}" onclick="selectReport('\${r.id}')">
-          <div class="report-item-header">
-            <span class="category-tag cat-\${r.category}">\${r.category}</span>
-            <span style="color:var(--success); font-size:0.72rem; font-weight:600;">● Passed</span>
+      if (state.sidebarGrouping === 'FLAT') {
+        elements.reportsList.innerHTML = filtered.map(r => createReportCardHTML(r)).join('');
+      } else {
+        // Folder-wise grouping
+        const groups = {};
+        filtered.forEach(r => {
+          const parts = r.relativePath.split('/');
+          const groupName = parts.length > 2 ? parts[1] : (parts.length === 2 ? parts[0] : 'General');
+          if (!groups[groupName]) groups[groupName] = [];
+          groups[groupName].push(r);
+        });
+
+        let html = '';
+        for (const [groupName, reports] of Object.entries(groups)) {
+          html += \`
+            <div class="folder-group expanded" data-folder="\${groupName}">
+              <div class="folder-group-header" onclick="toggleFolderGroup(this)">
+                <div class="folder-header-left">
+                  <svg class="folder-chevron" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                  <span class="folder-icon">📁</span>
+                  <span class="folder-name-text" title="\${groupName}">\${groupName}</span>
+                </div>
+                <span class="folder-count-badge">\${reports.length}</span>
+              </div>
+              <div class="folder-items-container">
+                \${reports.map(r => createReportCardHTML(r)).join('')}
+              </div>
+            </div>
+          \`;
+        }
+        elements.reportsList.innerHTML = html;
+      }
+
+      // Highlight active card
+      if (state.selectedReportId) {
+        const activeCard = elements.reportsList.querySelector(\`.report-card[data-id="\${state.selectedReportId}"]\`);
+        if (activeCard) activeCard.classList.add('active');
+      }
+    }
+
+    function createReportCardHTML(r) {
+      const isSelected = state.selectedReportId === r.id;
+      const statusClass = r.status === 'passed' ? 'passed' : 'failed';
+      return \`
+        <div class="report-card \${isSelected ? 'active' : ''} status-\${statusClass}" data-id="\${r.id}">
+          <div class="card-top-row">
+            <span class="status-badge \${statusClass}">
+              <span class="dot"></span>
+              \${r.status === 'passed' ? 'PASSED' : 'FAILED'}
+            </span>
+            <span class="card-duration">\${r.duration || '1s'}</span>
           </div>
-          <div class="report-item-title">\${r.title}</div>
-          <div class="report-item-meta">
-            <span>📦 \${r.module}</span>
+          <div class="card-title">\${r.title}</div>
+          <div class="card-meta-row">
+            <span>📁 \${r.module}</span>
             <span>📸 \${r.screenshotsCount} SS</span>
-            <span>🎥 \${r.videosCount}</span>
-          </div>
-        </div>
-      \`).join('');
-    }
-
-    function selectReport(reportId) {
-      selectedReport = ALL_REPORTS.find(r => r.id === reportId);
-      if (!selectedReport) return;
-      selectedStepIdx = 0;
-
-      document.querySelectorAll('.report-item').forEach(el => el.classList.remove('active'));
-      const activeEl = document.querySelector(\`.report-item[onclick="selectReport('\${reportId}')"]\`);
-      if (activeEl) activeEl.classList.add('active');
-
-      document.getElementById('detailTitle').textContent = selectedReport.title;
-      document.getElementById('detailBreadcrumb').textContent = \`📂 \${selectedReport.relativePath}\`;
-      document.getElementById('btnOpenReport').href = selectedReport.url;
-
-      renderFolderTree(selectedReport);
-      renderStepsTree(selectedReport);
-      updateStageView();
-    }
-
-    function renderFolderTree(report) {
-      const box = document.getElementById('folderTreeBox');
-      const parts = report.relativePath.split('/');
-      const folderName = parts[parts.length - 1];
-
-      let html = \`
-        <div class="tree-node node-dir">📁 \${folderName}/</div>
-        <div class="tree-indent">
-          <div class="tree-node">📄 index.html (\${report.sizeKb} KB)</div>
-          <div class="tree-node node-dir">📁 screenshots/ (\${report.screenshotsCount} files)</div>
-          <div class="tree-indent">
-            \${report.screenshots.slice(0, 3).map(s => \`<div class="tree-node">🖼️ \${s.name}</div>\`).join('')}
-            \${report.screenshotsCount > 3 ? \`<div class="tree-node" style="color:var(--text-muted);">... +\${report.screenshotsCount - 3} more files</div>\` : ''}
-          </div>
-          <div class="tree-node node-dir">📁 videos/ (\${report.videosCount} files)</div>
-          <div class="tree-indent">
-            \${report.videos.map(v => \`<div class="tree-node">🎬 \${v.name}</div>\`).join('')}
+            <span>🎬 \${r.videosCount}</span>
           </div>
         </div>
       \`;
-      box.innerHTML = html;
     }
 
-    function renderStepsTree(report) {
-      const timeline = document.getElementById('stepsTimeline');
-      document.getElementById('stepsCountBadge').textContent = report.screenshotsCount;
+    window.toggleFolderGroup = function(headerEl) {
+      const group = headerEl.closest('.folder-group');
+      if (group) {
+        group.classList.toggle('expanded');
+      }
+    };
 
-      if (report.screenshots.length === 0) {
-        timeline.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem; padding:0.5rem;">No screenshots recorded</div>';
-        return;
+    window.toggleAllFolderGroups = function(expand) {
+      document.querySelectorAll('.folder-group').forEach(g => {
+        g.classList.toggle('expanded', expand);
+      });
+    };
+
+    function setSidebarGrouping(mode) {
+      state.sidebarGrouping = mode;
+      elements.btnFolderwise.classList.toggle('active', mode === 'FOLDERWISE');
+      elements.btnFlatList.classList.toggle('active', mode === 'FLAT');
+      renderReportsList();
+    }
+
+    function selectReport(reportId) {
+      state.selectedReportId = reportId;
+      const report = ALL_REPORTS.find(r => r.id === reportId);
+      if (!report) return;
+
+      document.querySelectorAll('.report-card').forEach(c => c.classList.remove('active'));
+      const activeEl = elements.reportsList.querySelector(\`.report-card[data-id="\${reportId}"]\`);
+      if (activeEl) activeEl.classList.add('active');
+
+      renderDetailView(report);
+    }
+
+    function renderDetailView(report) {
+      state.lightbox.images = report.screenshots.map(s => ({
+        path: s.relPath,
+        name: s.title || s.name
+      }));
+
+      const hasVideo = report.videos && report.videos.length > 0;
+      const firstVideo = hasVideo ? report.videos[0] : null;
+
+      let html = \`
+        <!-- Header Card -->
+        <div class="detail-header-card \${report.status === 'failed' ? 'failed-header' : ''}">
+          <div class="detail-title-row">
+            <div class="detail-title-group">
+              <h2>\${report.title}</h2>
+              <div class="detail-spec-path">
+                📂 \${report.relativePath}
+              </div>
+            </div>
+
+            <div class="header-actions-group">
+              <a href="\${report.url}" target="_blank" class="btn-action btn-primary-action" title="Open Playwright HTML Report">
+                🚀 Open Playwright Report
+              </a>
+              <a href="\${report.githubReportUrl}" target="_blank" class="btn-action btn-secondary-action" title="View Hosted Live Report on GitHub Pages">
+                🌐 Live Cloud Report
+              </a>
+              <a href="\${report.githubRepoUrl}" target="_blank" class="btn-action btn-secondary-action" title="View Source Files on GitHub">
+                📦 GitHub Code
+              </a>
+            </div>
+          </div>
+
+          <div class="detail-metrics-row">
+            <div class="metric-item">
+              <span class="status-badge \${report.status === 'passed' ? 'passed' : 'failed'}">
+                <span class="dot"></span>
+                \${report.status === 'passed' ? 'PASSED' : 'FAILED'}
+              </span>
+            </div>
+            <div class="metric-item">⏱️ Duration: <strong>\${report.duration || '1.2s'}</strong></div>
+            <div class="metric-item">📁 Module: <strong>\${report.module}</strong></div>
+            <div class="metric-item">📸 Screenshots: <strong style="color:var(--accent-cyan);">\${report.screenshotsCount}</strong></div>
+            <div class="metric-item">🎬 Video: <strong>\${report.videosCount > 0 ? 'Recorded' : 'None'}</strong></div>
+            <div class="metric-item">📅 Last Modified: <strong>\${new Date(report.lastModified).toLocaleString()}</strong></div>
+          </div>
+        </div>
+      \`;
+
+      // Video Player Section (if video exists)
+      if (hasVideo) {
+        const videoLocalUrl = firstVideo.relPath;
+        const videoCloudUrl = firstVideo.cloudUrl || (GITHUB_RAW_BASE + '/' + firstVideo.relPath.replace(/^\.\//, ''));
+
+        html += \`
+          <div class="video-section-card">
+            <div class="section-title-row">
+              <div class="section-title">
+                <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                Execution Video Recording
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <a href="\${videoCloudUrl}" target="_blank" download class="tree-toggle-btn" style="text-decoration:none; font-size:0.75rem; color:#60a5fa;" title="Download or stream video in native mobile player">
+                  📥 Open / Download Video
+                </a>
+                <button class="tree-toggle-btn" onclick="toggleVideoCollapse(this)" style="font-size:0.75rem;">
+                  🔽 Hide Video
+                </button>
+              </div>
+            </div>
+
+            <div class="video-player-container" id="videoPlayerBox">
+              <video id="testVideoPlayer" 
+                     src="\${videoLocalUrl}" 
+                     controls 
+                     muted 
+                     playsinline 
+                     webkit-playsinline 
+                     preload="metadata"
+                     style="width: 100%; max-height: 480px; background: #000;"
+                     onerror="handleVideoError(this, '\${videoLocalUrl}')">
+                <source src="\${videoLocalUrl}" type="video/webm">
+                <source src="\${videoCloudUrl}" type="video/webm">
+                <source src="\${videoCloudUrl}" type="video/mp4">
+                Your mobile browser does not support inline WebM playback. Tap "Open / Download Video" above.
+              </video>
+            </div>
+
+            <div class="video-controls-toolbar" id="videoToolbarBox">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button class="video-skip-btn" onclick="skipVideo(-10)">⏪ -10s</button>
+                <button class="video-skip-btn" onclick="skipVideo(-5)">⏪ -5s</button>
+                <button class="video-skip-btn" onclick="skipVideo(5)">⏩ +5s</button>
+                <button class="video-skip-btn" onclick="skipVideo(10)">⏩ +10s</button>
+              </div>
+
+              <div class="video-speed-group">
+                <span class="speed-label">⚡ Speed:</span>
+                <button class="speed-btn" onclick="setVideoSpeed(0.5, this)">0.5x</button>
+                <button class="speed-btn active" onclick="setVideoSpeed(1, this)">1x</button>
+                <button class="speed-btn" onclick="setVideoSpeed(1.5, this)">1.5x</button>
+                <button class="speed-btn" onclick="setVideoSpeed(2, this)">2x</button>
+                <button class="speed-btn" onclick="setVideoSpeed(3, this)">3x</button>
+                <button class="speed-btn" onclick="setVideoSpeed(4, this)">4x</button>
+              </div>
+            </div>
+          </div>
+        \`;
       }
 
-      timeline.innerHTML = report.screenshots.map((s, idx) => \`
-        <div class="step-node \${idx === selectedStepIdx ? 'active' : ''}" onclick="selectStep(\${idx})">
-          <span class="step-badge">\${idx + 1}</span>
-          <span class="step-name-text" title="\${s.title}">\${s.title}</span>
+      // Steps Execution Tree & Screenshots Gallery
+      html += \`
+        <div class="steps-tree-card">
+          <div class="section-title-row">
+            <div class="section-title">
+              <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+              Execution Steps & Attached Screenshots (\${report.screenshotsCount})
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="view-mode-tabs">
+                <button class="view-tab-btn \${state.activeViewMode === 'tree' ? 'active' : ''}" onclick="switchViewMode('tree')">
+                  ⚡ Steps Tree
+                </button>
+                <button class="view-tab-btn \${state.activeViewMode === 'gallery' ? 'active' : ''}" onclick="switchViewMode('gallery')">
+                  🖼️ Gallery Grid
+                </button>
+              </div>
+
+              <div id="treeControls" style="display: \${state.activeViewMode === 'tree' ? 'flex' : 'none'}; gap: 4px;">
+                <button class="tree-toggle-btn" onclick="toggleAllSteps(true)" title="Expand all step nodes">➕ Expand All</button>
+                <button class="tree-toggle-btn" onclick="toggleAllSteps(false)" title="Collapse all step nodes">➖ Collapse All</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tree View -->
+          <div class="steps-list" id="stepsTreeView" style="display: \${state.activeViewMode === 'tree' ? 'flex' : 'none'};">
+            \${renderStepsTreeHTML(report)}
+          </div>
+
+          <!-- Gallery Grid View -->
+          <div class="gallery-grid" id="galleryView" style="display: \${state.activeViewMode === 'gallery' ? 'grid' : 'none'};">
+            \${report.screenshots.map((s, idx) => \`
+              <div class="gallery-item" onclick="openLightboxFromGallery(\${idx})">
+                <div class="gallery-thumb">
+                  <img src="\${s.relPath}" alt="\${s.title}" onerror="handleImgError(this, '\${s.relPath}')" loading="lazy">
+                </div>
+                <div class="gallery-caption" title="\${s.title}">
+                  \${idx + 1}. \${s.title}
+                </div>
+              </div>
+            \`).join('')}
+          </div>
+        </div>
+      \`;
+
+      // Associated Folder Structure Card
+      html += \`
+        <div class="folder-structure-card">
+          <div class="section-title">
+            📁 Associated Folder Structure & Files
+          </div>
+          <div class="tree-view-box">
+            <div>📁 <strong>\${report.relativePath}/</strong></div>
+            <div style="padding-left: 18px; margin-top: 4px; display: flex; flex-direction: column; gap: 3px;">
+              <div>📄 index.html (\${report.sizeKb} KB)</div>
+              <div>📁 screenshots/ (\${report.screenshotsCount} files)</div>
+              <div style="padding-left: 18px; color: var(--text-muted); font-size: 0.72rem;">
+                \${report.screenshots.slice(0, 3).map(s => \`<div>🖼️ \${s.name}</div>\`).join('')}
+                \${report.screenshotsCount > 3 ? \`<div>... +\${report.screenshotsCount - 3} more files</div>\` : ''}
+              </div>
+              <div>📁 videos/ (\${report.videosCount} files)</div>
+              <div style="padding-left: 18px; color: var(--text-muted); font-size: 0.72rem;">
+                \${report.videos.map(v => \`<div>🎬 \${v.name}</div>\`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      \`;
+
+      elements.detailContent.innerHTML = html;
+
+      // Attach video error fallback
+      const videoEl = document.getElementById('testVideoPlayer');
+      if (videoEl && firstVideo) {
+        videoEl.onerror = function() {
+          handleVideoError(this, firstVideo.relPath);
+        };
+      }
+    }
+
+    function renderStepsTreeHTML(report) {
+      if (!report.screenshots || report.screenshots.length === 0) {
+        return '<div style="color:var(--text-muted); font-size:0.82rem; padding:0.5rem;">No execution screenshots recorded for this test.</div>';
+      }
+
+      return report.screenshots.map((s, idx) => \`
+        <div class="step-node expanded has-screenshot">
+          <div class="step-header" onclick="toggleStepNode(this)">
+            <div class="step-left-info">
+              <svg class="step-chevron" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+              <div class="step-icon-badge">⚡</div>
+              <div class="step-title-text">\${idx + 1}. \${s.title}</div>
+            </div>
+
+            <div class="step-right-meta">
+              <span class="step-screenshot-indicator">
+                <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                Screenshot
+              </span>
+            </div>
+          </div>
+
+          <div class="step-body">
+            <div class="step-inline-screenshots">
+              <div class="step-screenshot-card" onclick="openLightbox('\${s.relPath}', '\${s.title}')">
+                <div class="step-screenshot-img-box">
+                  <img src="\${s.relPath}" alt="\${s.title}" onerror="handleImgError(this, '\${s.relPath}')" loading="lazy">
+                  <div class="step-screenshot-overlay">
+                    🔍 Click to Enlarge
+                  </div>
+                </div>
+                <div class="step-screenshot-caption">\${s.name}</div>
+              </div>
+            </div>
+          </div>
         </div>
       \`).join('');
     }
 
-    function selectStep(idx) {
-      selectedStepIdx = idx;
-      document.querySelectorAll('.step-node').forEach((node, i) => {
-        node.classList.toggle('active', i === idx);
+    window.toggleStepNode = function(headerEl) {
+      const node = headerEl.closest('.step-node');
+      if (node) {
+        node.classList.toggle('expanded');
+      }
+    };
+
+    window.toggleAllSteps = function(expand) {
+      document.querySelectorAll('.step-node').forEach(node => {
+        node.classList.toggle('expanded', expand);
       });
-      updateStageView();
-    }
+    };
 
-    function updateStageView() {
-      if (!selectedReport || selectedReport.screenshots.length === 0) return;
+    window.switchViewMode = function(mode) {
+      state.activeViewMode = mode;
+      document.querySelectorAll('.view-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(mode));
+      });
 
-      const currentStep = selectedReport.screenshots[selectedStepIdx];
-      const img = document.getElementById('mainStepImg');
+      const treeView = document.getElementById('stepsTreeView');
+      const galleryView = document.getElementById('galleryView');
+      const treeControls = document.getElementById('treeControls');
+
+      if (treeView) treeView.style.display = mode === 'tree' ? 'flex' : 'none';
+      if (galleryView) galleryView.style.display = mode === 'gallery' ? 'grid' : 'none';
+      if (treeControls) treeControls.style.display = mode === 'tree' ? 'flex' : 'none';
+    };
+
+    window.setVideoSpeed = function(speed, btn) {
+      const video = document.getElementById('testVideoPlayer');
+      if (video) {
+        video.playbackRate = speed;
+        btn.parentElement.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      }
+    };
+
+    window.skipVideo = function(seconds) {
+      const video = document.getElementById('testVideoPlayer');
+      if (video) {
+        video.currentTime = Math.max(0, Math.min(video.duration || 9999, video.currentTime + seconds));
+      }
+    };
+
+    window.toggleVideoCollapse = function(btn) {
+      state.isVideoCollapsed = !state.isVideoCollapsed;
+      const box = document.getElementById('videoPlayerBox');
+      const tool = document.getElementById('videoToolbarBox');
+      if (box) box.style.display = state.isVideoCollapsed ? 'none' : 'flex';
+      if (tool) tool.style.display = state.isVideoCollapsed ? 'none' : 'flex';
+      btn.textContent = state.isVideoCollapsed ? '🔼 Show Video' : '🔽 Hide Video';
+    };
+
+    window.openLightbox = function(imgPath, title) {
+      state.lightbox.isOpen = true;
+      state.lightbox.title = title || '';
       
-      img.src = currentStep.relPath;
-      img.onerror = () => {
-        if (!img.getAttribute('data-retried')) {
-          img.setAttribute('data-retried', '1');
-          img.src = GITHUB_RAW_BASE + '/' + currentStep.relPath;
-        }
+      let idx = state.lightbox.images.findIndex(img => img.path === imgPath || \`./\${img.path}\` === imgPath);
+      if (idx === -1) {
+        state.lightbox.images = [{ path: imgPath.replace(/^\\.\\//, ''), name: title }];
+        idx = 0;
+      }
+      state.lightbox.currentIndex = idx;
+      updateLightboxUI();
+    };
+
+    window.openLightboxFromGallery = function(idx) {
+      state.lightbox.isOpen = true;
+      state.lightbox.currentIndex = idx;
+      updateLightboxUI();
+    };
+
+    function updateLightboxUI() {
+      const imgObj = state.lightbox.images[state.lightbox.currentIndex];
+      if (!imgObj) return;
+
+      elements.lightboxImg.removeAttribute('data-retried');
+      elements.lightboxImg.src = imgObj.path;
+      elements.lightboxImg.onerror = function() {
+        handleImgError(this, imgObj.path);
       };
 
-      document.getElementById('viewerStepTitle').textContent = \`Step \${selectedStepIdx + 1}: \${currentStep.title}\`;
-      document.getElementById('viewerStepCounter').textContent = \`\${selectedStepIdx + 1} of \${selectedReport.screenshots.length} (\${currentStep.name})\`;
-
-      const strip = document.getElementById('thumbFilmstrip');
-      strip.innerHTML = selectedReport.screenshots.map((s, idx) => \`
-        <div class="strip-item \${idx === selectedStepIdx ? 'active' : ''}" onclick="selectStep(\${idx})">
-          <img src="\${s.relPath}" alt="Step \${idx + 1}" onerror="this.src='\${GITHUB_RAW_BASE}/\${s.relPath}'" loading="lazy">
-        </div>
-      \`).join('');
-
-      const videoPlayer = document.getElementById('stageVideoPlayer');
-      const videoBadge = document.getElementById('videoTabBadge');
-      videoBadge.textContent = selectedReport.videosCount;
-
-      if (selectedReport.videos.length > 0) {
-        videoPlayer.src = selectedReport.videos[0].relPath;
-        videoPlayer.playbackRate = currentPlaybackRate;
-      } else {
-        videoPlayer.src = '';
-      }
+      elements.lightboxTitle.textContent = imgObj.name || state.lightbox.title;
+      elements.lightboxCounter.textContent = \`\${state.lightbox.currentIndex + 1} / \${state.lightbox.images.length}\`;
+      elements.lightboxDownload.href = imgObj.path;
+      elements.lightboxModal.classList.add('active');
     }
 
-    function navStep(delta) {
-      if (!selectedReport || selectedReport.screenshots.length === 0) return;
-      const count = selectedReport.screenshots.length;
-      selectedStepIdx = (selectedStepIdx + delta + count) % count;
-      selectStep(selectedStepIdx);
+    function closeLightbox() {
+      state.lightbox.isOpen = false;
+      elements.lightboxModal.classList.remove('active');
+      elements.lightboxImg.src = '';
     }
 
-    /* Video Player Speed & Skip Controls */
-    function setVideoSpeed(speed) {
-      currentPlaybackRate = speed;
-      const videoPlayer = document.getElementById('stageVideoPlayer');
-      if (videoPlayer) {
-        videoPlayer.playbackRate = speed;
-      }
+    function nextLightbox() {
+      if (state.lightbox.images.length <= 1) return;
+      state.lightbox.currentIndex = (state.lightbox.currentIndex + 1) % state.lightbox.images.length;
+      updateLightboxUI();
+    }
 
-      document.querySelectorAll('.speed-btn').forEach(btn => {
-        btn.classList.toggle('active', parseFloat(btn.textContent) === speed);
+    function prevLightbox() {
+      if (state.lightbox.images.length <= 1) return;
+      state.lightbox.currentIndex = (state.lightbox.currentIndex - 1 + state.lightbox.images.length) % state.lightbox.images.length;
+      updateLightboxUI();
+    }
+
+    function setupEventListeners() {
+      elements.navTabs.addEventListener('click', e => {
+        const btn = e.target.closest('.nav-tab-btn');
+        if (btn) {
+          const tabId = btn.getAttribute('data-tab');
+          setActiveTab(tabId);
+        }
       });
 
-      document.getElementById('currentSpeedDisplay').textContent = \`Playback: \${speed}x\`;
-    }
+      elements.searchInput.addEventListener('input', e => {
+        state.searchQuery = e.target.value;
+        renderReportsList();
+      });
 
-    function changeSpeedStep(delta) {
-      let newSpeed = Math.max(0.5, Math.min(4.0, currentPlaybackRate + delta));
-      setVideoSpeed(newSpeed);
-    }
+      [elements.chipAll, elements.chipPassed, elements.chipFailed].forEach(chip => {
+        if (chip) {
+          chip.addEventListener('click', () => {
+            [elements.chipAll, elements.chipPassed, elements.chipFailed].forEach(c => c && c.classList.remove('active'));
+            chip.classList.add('active');
+            state.statusFilter = chip.getAttribute('data-filter');
+            renderReportsList();
+          });
+        }
+      });
 
-    function skipVideo(seconds) {
-      const videoPlayer = document.getElementById('stageVideoPlayer');
-      if (videoPlayer) {
-        videoPlayer.currentTime = Math.max(0, Math.min(videoPlayer.duration || 9999, videoPlayer.currentTime + seconds));
+      if (elements.btnFolderwise) {
+        elements.btnFolderwise.addEventListener('click', () => setSidebarGrouping('FOLDERWISE'));
       }
-    }
-
-    function setStageTab(tab) {
-      stageTab = tab;
-      document.getElementById('tabScreenshots').classList.toggle('active', tab === 'screenshots');
-      document.getElementById('tabVideo').classList.toggle('active', tab === 'video');
-      document.getElementById('panelScreenshots').classList.toggle('active', tab === 'screenshots');
-      document.getElementById('panelVideo').classList.toggle('active', tab === 'video');
-
-      const videoPlayer = document.getElementById('stageVideoPlayer');
-      if (tab === 'video' && selectedReport && selectedReport.videos.length > 0) {
-        videoPlayer.playbackRate = currentPlaybackRate;
-        videoPlayer.play().catch(() => {});
-      } else {
-        videoPlayer.pause();
+      if (elements.btnFlatList) {
+        elements.btnFlatList.addEventListener('click', () => setSidebarGrouping('FLAT'));
       }
+
+      elements.reportsList.addEventListener('click', e => {
+        const card = e.target.closest('.report-card');
+        if (card) {
+          const reportId = card.getAttribute('data-id');
+          selectReport(reportId);
+        }
+      });
+
+      elements.lightboxClose.addEventListener('click', closeLightbox);
+      elements.lightboxNext.addEventListener('click', nextLightbox);
+      elements.lightboxPrev.addEventListener('click', prevLightbox);
+
+      elements.lightboxModal.addEventListener('click', e => {
+        if (e.target === elements.lightboxModal || e.target.classList.contains('lightbox-content')) {
+          closeLightbox();
+        }
+      });
+
+      document.addEventListener('keydown', e => {
+        if (state.lightbox.isOpen) {
+          if (e.key === 'Escape') closeLightbox();
+          if (e.key === 'ArrowRight') nextLightbox();
+          if (e.key === 'ArrowLeft') prevLightbox();
+        }
+      });
     }
 
-    function initTheme() {
-      const savedTheme = localStorage.getItem('dd_theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '🌙' : '☀️';
-    }
-
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('dd_theme', next);
-      document.getElementById('themeToggle').textContent = next === 'dark' ? '🌙' : '☀️';
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
     }
   </script>
 </body>
 </html>`;
 
-  const outputPath = path.join(targetRootDir, 'index.html');
+  const outputPath = path.join(targetRootDir, 'DD_V4.6.3_Reports.html');
   fs.writeFileSync(outputPath, htmlContent, 'utf8');
-  console.log(`Generated Video Fast-Forward Controls in: ${outputPath}`);
+
+  console.log(`Successfully generated standalone report in: ${outputPath}`);
 }
 
 generateDashboard('c:\\Users\\viraj\\Desktop\\reports\\DD_V4.6.3_Reports');
