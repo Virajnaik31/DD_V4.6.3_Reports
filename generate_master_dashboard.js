@@ -1571,6 +1571,43 @@ html, body {
   <script>
     const ALL_REPORTS = ${reportsJson};
     const GITHUB_RAW_BASE = '${GITHUB_RAW_BASE}';
+    const GITHUB_PAGES_BASE = '${GITHUB_PAGES_BASE}';
+    const JSDELIVR_BASE = 'https://cdn.jsdelivr.net/gh/Virajnaik31/DD_V4.6.3_Reports@main';
+
+    function getMediaUrl(relPath) {
+      const cleanPath = relPath.startsWith('./') ? relPath.slice(2) : relPath;
+      if (window.location.protocol.startsWith('content') || window.location.protocol.startsWith('http')) {
+        return GITHUB_PAGES_BASE + '/' + cleanPath;
+      }
+      return relPath;
+    }
+
+    function handleImgError(imgElement, relPath) {
+      if (!imgElement.getAttribute('data-retried')) {
+        imgElement.setAttribute('data-retried', '1');
+        const cleanPath = relPath.startsWith('./') ? relPath.slice(2) : relPath;
+        imgElement.src = GITHUB_RAW_BASE + '/' + cleanPath;
+      }
+    }
+
+    function handleVideoError(videoElement, relPath) {
+      const retryCount = parseInt(videoElement.getAttribute('data-retried') || '0', 10);
+      const cleanPath = relPath.startsWith('./') ? relPath.slice(2) : relPath;
+      
+      if (retryCount === 0) {
+        videoElement.setAttribute('data-retried', '1');
+        videoElement.src = GITHUB_PAGES_BASE + '/' + cleanPath;
+        videoElement.load();
+      } else if (retryCount === 1) {
+        videoElement.setAttribute('data-retried', '2');
+        videoElement.src = JSDELIVR_BASE + '/' + cleanPath;
+        videoElement.load();
+      } else if (retryCount === 2) {
+        videoElement.setAttribute('data-retried', '3');
+        videoElement.src = GITHUB_RAW_BASE + '/' + cleanPath;
+        videoElement.load();
+      }
+    }
 
     const state = {
       activeTab: '${categories[0] || 'CMT'}',
@@ -1875,7 +1912,13 @@ html, body {
       if (hasVideo) {
         const videoLocalUrl = firstVideo.relPath;
         const cleanPath = firstVideo.relPath.startsWith('./') ? firstVideo.relPath.slice(2) : firstVideo.relPath;
-        const videoCloudUrl = firstVideo.cloudUrl || (GITHUB_RAW_BASE + '/' + cleanPath);
+        const videoPagesUrl = GITHUB_PAGES_BASE + '/' + cleanPath;
+        const videoCdnUrl = JSDELIVR_BASE + '/' + cleanPath;
+        const videoRawUrl = GITHUB_RAW_BASE + '/' + cleanPath;
+
+        const initialVideoSrc = (window.location.protocol.startsWith('content') || window.location.protocol.startsWith('http'))
+          ? videoPagesUrl
+          : videoLocalUrl;
 
         html += \`
           <div class="video-section-card">
@@ -1885,8 +1928,11 @@ html, body {
                 Execution Video Recording
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <a href="\${videoCloudUrl}" target="_blank" download class="tree-toggle-btn" style="text-decoration:none; font-size:0.75rem; color:#60a5fa;" title="Download or stream video in native mobile player">
-                  📥 Open / Download Video
+                <a href="\${videoPagesUrl}" target="_blank" class="tree-toggle-btn" style="text-decoration:none; font-size:0.75rem; color:#60a5fa;" title="Open video stream directly in Chrome/native mobile player">
+                  ▶️ Open in Mobile Player
+                </a>
+                <a href="\${videoRawUrl}" target="_blank" download class="tree-toggle-btn" style="text-decoration:none; font-size:0.75rem; color:#94a3b8;" title="Download raw video file">
+                  📥 Download
                 </a>
                 <button class="tree-toggle-btn" onclick="toggleVideoCollapse(this)" style="font-size:0.75rem;">
                   🔽 Hide Video
@@ -1896,7 +1942,7 @@ html, body {
 
             <div class="video-player-container" id="videoPlayerBox">
               <video id="testVideoPlayer" 
-                     src="\${videoLocalUrl}" 
+                     src="\${initialVideoSrc}" 
                      controls 
                      muted 
                      playsinline 
@@ -1904,10 +1950,11 @@ html, body {
                      preload="metadata"
                      style="width: 100%; max-height: 480px; background: #000;"
                      onerror="handleVideoError(this, '\${videoLocalUrl}')">
-                <source src="\${videoLocalUrl}" type="video/webm">
-                <source src="\${videoCloudUrl}" type="video/webm">
-                <source src="\${videoCloudUrl}" type="video/mp4">
-                Your mobile browser does not support inline WebM playback. Tap "Open / Download Video" above.
+                <source src="\${initialVideoSrc}" type="video/webm">
+                <source src="\${videoPagesUrl}" type="video/webm">
+                <source src="\${videoCdnUrl}" type="video/webm">
+                <source src="\${videoRawUrl}" type="video/webm">
+                Your mobile browser does not support inline WebM playback. Tap "Open in Mobile Player" above.
               </video>
             </div>
 
