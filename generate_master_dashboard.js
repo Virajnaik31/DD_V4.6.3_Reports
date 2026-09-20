@@ -2279,7 +2279,10 @@ html, body {
   const outputPath = path.join(targetRootDir, 'DD_V4.6.3_Reports.html');
   fs.writeFileSync(outputPath, htmlContent, 'utf8');
 
-  console.log(`Successfully generated standalone report in: ${outputPath}`);
+  const indexOutputPath = path.join(targetRootDir, 'index.html');
+  fs.writeFileSync(indexOutputPath, htmlContent, 'utf8');
+
+  console.log(`Successfully generated report in: ${outputPath} and ${indexOutputPath}`);
 }
 
 generateDashboard('c:\\Users\\viraj\\Desktop\\reports\\DD_V4.6.3_Reports');
